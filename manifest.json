@@ -1,0 +1,1 @@
+{"background_color":"#1B5E20","description":"BodegaControl offline de prueba: vender, fiar, stock, caja e importar CSV, solo en el teléfono.","display":"standalone","icons":[{"sizes":"512x512","src":"icon.svg","type":"image/svg+xml"}],"name":"BodegaControl Offline PRUEBA","scope":"./","short_name":"BodegaControl","start_url":"index.html","theme_color":"#1B5E20"}
