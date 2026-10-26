@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1B5E20">
+<title>BodegaControl Offline PRUEBA</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>📦 BodegaControl</h1>
+  <span class="badge">OFFLINE</span>
+  <p class="subtitle">PRUEBA · Los datos viven solo en este teléfono · Sin cuentas, sin nube</p>
+</header>
+
+<nav id="tabs" role="tablist">
+  <button data-tab="vender" class="active">Vender</button>
+  <button data-tab="productos">Productos</button>
+  <button data-tab="fiados">Fiados</button>
+  <button data-tab="caja">Caja</button>
+  <button data-tab="importar">Importar</button>
+</nav>
+
+<main>
+  <!-- VENDER -->
+  <section id="tab-vender" class="tab active">
+    <h2>Vender</h2>
+    <div class="field"><label for="v-producto">Producto</label><select id="v-producto"></select></div>
+    <div class="field"><label for="v-cantidad">Cantidad</label><input id="v-cantidad" type="number" min="1" step="1" value="1"></div>
+    <div class="field"><label for="v-metodo">Método de pago</label>
+      <select id="v-metodo"><option>Efectivo</option><option>Transferencia</option><option>Fiado</option></select></div>
+    <div class="field" id="v-cliente-wrap" style="display:none"><label for="v-cliente">Nombre del cliente (para fiado)</label><input id="v-cliente" placeholder="Ej: Cliente de ejemplo"></div>
+    <p id="v-resumen" class="resumen"></p>
+    <button id="v-vender" class="big">Confirmar venta</button>
+    <p id="v-msg" class="msg"></p>
+    <h3>Ventas recientes</h3>
+    <ul id="v-ventas" class="list"></ul>
+  </section>
+
+  <!-- PRODUCTOS -->
+  <section id="tab-productos" class="tab">
+    <h2>Productos</h2>
+    <p class="hint">Los productos con stock igual o menor que el mínimo muestran ALERTA.</p>
+    <ul id="p-lista" class="list"></ul>
+    <h3 id="p-form-titulo">Nuevo producto</h3>
+    <form id="p-form">
+      <div class="field"><label for="p-nombre">Nombre del producto</label><input id="p-nombre" required></div>
+      <div class="field"><label for="p-categoria">Categoría</label><input id="p-categoria" required></div>
+      <div class="field"><label for="p-unidad">Unidad</label><input id="p-unidad" value="unidad" required></div>
+      <div class="field"><label for="p-costo">Costo</label><input id="p-costo" type="number" min="0" step="0.01" required></div>
+      <div class="field"><label for="p-efectivo">Precio en efectivo</label><input id="p-efectivo" type="number" min="0" step="0.01" required></div>
+      <div class="field"><label for="p-transferencia">Precio por transferencia / pago digital</label><input id="p-transferencia" type="number" min="0" step="0.01" required></div>
+      <div class="field"><label for="p-stock">Stock</label><input id="p-stock" type="number" min="0" step="1" required></div>
+      <div class="field"><label for="p-minimo">Stock mínimo (alerta)</label><input id="p-minimo" type="number" min="0" step="1" value="5" required></div>
+      <button type="submit" class="big">Guardar producto</button>
+      <button type="button" id="p-limpiar">Limpiar formulario</button>
+    </form>
+    <p id="p-msg" class="msg"></p>
+  </section>
+
+  <!-- FIADOS -->
+  <section id="tab-fiados" class="tab">
+    <h2>Fiados</h2>
+    <p>Total adeudado a la bodega: <strong id="f-total">$0 CUP</strong></p>
+    <ul id="f-lista" class="list"></ul>
+    <h3>Registrar abono</h3>
+    <div class="field"><label for="f-fiado">Fiado</label><select id="f-fiado"></select></div>
+    <div class="field"><label for="f-abono">Monto del abono</label><input id="f-abono" type="number" min="0" step="0.01"></div>
+    <button id="f-abonar" class="big">Registrar abono</button>
+    <p id="f-msg" class="msg"></p>
+  </section>
+
+  <!-- CAJA -->
+  <section id="tab-caja" class="tab">
+    <h2>Caja</h2>
+    <div id="c-hoy"></div>
+    <button id="c-cerrar" class="big">Cerrar el día</button>
+    <p id="c-msg" class="msg"></p>
+    <h3>Historial de cierres</h3>
+    <ul id="c-historial" class="list"></ul>
+  </section>
+
+  <!-- IMPORTAR -->
+  <section id="tab-importar" class="tab">
+    <h2>Importar</h2>
+    <p>Archivo CSV con columnas, en este orden:<br>
+    <code>nombre,categoria,unidad,costo,precio_efectivo,precio_transferencia,stock,stock_minimo</code></p>
+    <div class="field"><label for="i-archivo">Archivo CSV</label><input id="i-archivo" type="file" accept=".csv,text/csv"></div>
+    <button id="i-importar" class="big">Importar CSV</button>
+    <p id="i-msg" class="msg"></p>
+    <p class="hint">Ejemplo: Producto Prueba,Confituras,unidad,50,70,91,10,2</p>
+  </section>
+</main>
+
+<script src="app.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+  });
+}
+</script>
+</body>
+</html>
