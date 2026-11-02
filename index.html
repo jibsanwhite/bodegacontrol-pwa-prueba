@@ -22,6 +22,7 @@
   <button data-tab="fiados">Fiados</button>
   <button data-tab="caja">Caja</button>
   <button data-tab="importar">Importar</button>
+  <button data-tab="reportes">Reportes</button>
 </nav>
 
 <main>
@@ -29,7 +30,10 @@
   <section id="tab-vender" class="tab active">
     <h2>Vender</h2>
     <div class="field"><label for="v-producto">Producto</label><select id="v-producto"></select></div>
-    <div class="field"><label for="v-cantidad">Cantidad</label><input id="v-cantidad" type="number" min="1" step="1" value="1"></div>
+    <div class="field"><label for="v-cantidad">Cantidad</label><input id="v-cantidad" type="number" min="0.01" step="0.01" value="1"></div>
+    <div class="field"><label for="v-unidad-venta">Unidad de venta</label>
+      <select id="v-unidad-venta"><option>unidad</option><option>Lb</option><option>kg</option><option>g</option><option>L</option><option>ml</option></select></div>
+    <p class="hint">Para productos por peso o volumen (Lb, kg, L) puedes vender decimales. Si la unidad de venta es distinta a la del stock, la app convierte (ej: 500 g = 0,5 kg).</p>
     <div class="field"><label for="v-metodo">Método de pago</label>
       <select id="v-metodo"><option>Efectivo</option><option>Transferencia</option><option>Fiado</option></select></div>
     <div class="field" id="v-cliente-wrap" style="display:none"><label for="v-cliente">Nombre del cliente (para fiado)</label><input id="v-cliente" placeholder="Ej: Cliente de ejemplo"></div>
@@ -77,6 +81,15 @@
   <section id="tab-caja" class="tab">
     <h2>Caja</h2>
     <div id="c-hoy"></div>
+    <h3>Registrar recogida de efectivo</h3>
+    <div class="field"><label for="c-recogida">Monto recogido</label><input id="c-recogida" type="number" min="0" step="0.01"></div>
+    <div class="field"><label for="c-recogida-nota">Nota (opcional)</label><input id="c-recogida-nota" placeholder="Ej: Pago a proveedor"></div>
+    <button id="c-recoger" class="big">Registrar recogida</button>
+    <p id="c-recogida-msg" class="msg"></p>
+    <h3>Conteo de caja por denominaciones (CUP)</h3>
+    <p class="hint">Cuenta los billetes y escribe cuántos hay de cada uno. La app compara con el efectivo que debería haber.</p>
+    <div id="c-denominaciones"></div>
+    <p id="c-conteo"></p>
     <button id="c-cerrar" class="big">Cerrar el día</button>
     <p id="c-msg" class="msg"></p>
     <h3>Historial de cierres</h3>
@@ -92,6 +105,17 @@
     <button id="i-importar" class="big">Importar CSV</button>
     <p id="i-msg" class="msg"></p>
     <p class="hint">Ejemplo: Producto Prueba,Confituras,unidad,50,70,91,10,2</p>
+  </section>
+<!-- REPORTES -->
+  <section id="tab-reportes" class="tab">
+    <h2>Reportes</h2>
+    <p class="hint">Descarga el cierre o el reporte del mes como CSV (se abre en Excel) o imprímelo y guárdalo como PDF desde el diálogo de impresión del teléfono.</p>
+    <div class="field"><label for="r-periodo">Período</label>
+      <select id="r-periodo"><option value="hoy">Hoy</option><option value="mes">Este mes</option><option value="todo">Todo</option></select></div>
+    <button id="r-csv" class="big">Descargar reporte (CSV)</button>
+    <button id="r-imprimir" class="big">Imprimir / guardar como PDF</button>
+    <p id="r-msg" class="msg"></p>
+    <div id="r-resumen"></div>
   </section>
 </main>
 
