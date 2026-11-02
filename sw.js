@@ -1,5 +1,5 @@
 /* BodegaControl PWA - service worker, solo archivos locales, sin red externa */
-const CACHE = 'bodegacontrol-pwa-v1';
+const CACHE = 'bodegacontrol-pwa-v2';
 const FILES = ['index.html', 'style.css', 'app.js', 'manifest.json', 'icon.svg'];
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FILES); }).then(function () { return self.skipWaiting(); }));
