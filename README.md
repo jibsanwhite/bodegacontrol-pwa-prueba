@@ -38,6 +38,38 @@ URL en vivo: https://jibsanwhite.github.io/bodegacontrol-pwa-prueba/
 - Transferencia y fiado no entran en el conteo de efectivo, pero sí en
   el resumen del turno.
 
+## Respaldo en la nube (versión de pago; la gratuita solo descarga local)
+
+- Pestaña **Respaldo**: copia completa de la base (`.sqlite3`) en el
+  Google Drive **del negocio** (cada cliente en su Drive, nunca central).
+- La identidad es el correo del negocio (cuenta de Google): todos los
+  dispositivos del negocio usan ese correo.
+- Organización automática (sin IA): `BodegaControl / Respaldos /
+  <correo-del-negocio> / respaldo-AAAA-MM-DD_HH-MM-SS.sqlite3`. Se
+  guardan las últimas 5 copias y la primera de cada mes aparte en
+  `Mensuales/`.
+- El distintivo del encabezado cambia solo: OFFLINE sin conexión,
+  ONLINE cuando la app comprueba que llega a Drive (al abrir la
+  pestaña Respaldo o al respaldar). Mientras sube, el botón dice
+  "Respaldando...". Sin conexión los botones de nube se desactivan y
+  solo queda la descarga local.
+- Solo el dueño respalda o restaura (restaurar reemplaza TODO lo del
+  teléfono por la copia elegida).
+- v1 = respaldo/restauración del archivo completo, sin fusión entre
+  dispositivos. La fusión multi-dispositivo queda para después.
+
+### Desplegar el respaldo (dueño del negocio, una sola vez)
+
+1. Copia `respaldo.gs` a un proyecto nuevo en script.google.com (en el
+   Drive de la cuenta de Google del negocio).
+2. En Propiedades del script crea `CLAVE_RESPALDO` con una clave
+   inventada por ti (es la misma que escribirás en la app).
+3. Implementar como aplicación web: "Ejecutar como: Yo",
+   "Quién tiene acceso: Cualquiera". Copia la URL que termina en `/exec`.
+4. En la PWA, pestaña Respaldo: escribe el correo del negocio, pega la
+   URL y escribe la clave. Toca "Respaldar ahora". Los pasos exactos
+   están en la cabecera de `respaldo.gs`.
+
 ## Cómo guarda los datos
 
 - Base de datos SQLite real (archivo `bodegacontrol.sqlite3` en OPFS, el
@@ -61,6 +93,11 @@ URL en vivo: https://jibsanwhite.github.io/bodegacontrol-pwa-prueba/
   OPFS.
 - `db-schema.sql` — esquema SQLite (mismo que el de referencia de
   BodegaControl).
+- `respaldo.js` — pestaña Respaldo (distintivo ONLINE/OFFLINE, subida,
+  lista y restauración de copias, descarga local).
+- `respaldo.gs` — backend del respaldo en Apps Script (un archivo por
+  cliente, en su propio Drive; con los pasos de despliegue en la
+  cabecera).
 - `vendor/` — sql.js 1.16.0 (sql-wasm.js + sql-wasm.wasm).
 - `sw.js` — service worker (caché de los archivos para uso sin conexión).
 - `test-opfs.html` — página de diagnóstico (prueba sql.js + OPFS en el
@@ -87,6 +124,7 @@ la versión nueva (cerrar la pestaña y volver a abrir).
 
 ## Estado
 
-Prueba (Fase 1 + Fase 2: turnos y dependientes). La base de los
-teléfonos con Fase 1 se migra sola al abrir la app (tablas nuevas y
-columna turno_id; las ventas viejas quedan sin turno, legibles).
+Prueba (Fase 1 + Fase 2: turnos y dependientes + Respaldo en la nube
+v1). La base de los teléfonos con Fase 1 se migra sola al abrir la app
+(tablas nuevas y columna turno_id; las ventas viejas quedan sin turno,
+legibles).
