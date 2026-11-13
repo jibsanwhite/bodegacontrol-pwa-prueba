@@ -3,38 +3,61 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Prueba OPFS + SQLite</title>
+<title>Prueba sql.js + OPFS</title>
 <style>body{font-family:monospace;padding:16px}pre{white-space:pre-wrap}</style>
 </head>
 <body>
-<h1>Prueba OPFS + SQLite (solo diagnostico)</h1>
+<h1>Prueba sql.js + OPFS (solo diagnostico)</h1>
 <pre id="out">Iniciando...</pre>
-<script type="module">
-import sqlite3InitModule from './vendor/sqlite3/sqlite3.mjs';
-var out = document.getElementById('out');
-function log(s) { out.textContent += '\n' + s; }
-try {
-  log('secureContext: ' + window.isSecureContext);
-  log('crossOriginIsolated: ' + window.crossOriginIsolated);
-  log('SharedArrayBuffer: ' + typeof SharedArrayBuffer);
-  log('navigator.storage: ' + (navigator.storage ? 'si' : 'no'));
-  log('FileSystemFileHandle: ' + typeof FileSystemFileHandle);
-  var sqlite3 = await sqlite3InitModule({
-    locateFile: function (f) { return new URL('./vendor/sqlite3/' + f, location.href).href; }
-  });
-  log('sqlite version: ' + sqlite3.version.libVersion);
-  log('OpfsDb tras iniciar el modulo (auto-instalacion del VFS opfs): ' + typeof sqlite3.oo1.OpfsDb);
-  if (typeof sqlite3.oo1.OpfsDb !== 'function') throw new Error('OPFS no disponible en este navegador');
-  var db = await new sqlite3.oo1.OpfsDb('/test-opfs.sqlite3');
-  await db.exec('CREATE TABLE IF NOT EXISTS t(a); INSERT INTO t VALUES(42);');
-  var v = await db.selectValue('SELECT a FROM t LIMIT 1');
-  log('SELECT a FROM t: ' + v);
-  await db.exec('DROP TABLE t');
-  await db.close();
-  log('OK: OpfsDb funciona en este navegador');
-} catch (err) {
-  log('ERROR: ' + String((err && err.message) || err));
-}
+<script>
+(function () {
+  var out = document.getElementById('out');
+  function log(s) { out.textContent += '\n' + s; }
+  var s = document.createElement('script');
+  s.src = './vendor/sql.js/sql-wasm.js';
+  s.onload = async function () {
+    try {
+      log('secureContext: ' + window.isSecureContext);
+      log('navigator.storage: ' + (navigator.storage ? 'si' : 'no'));
+      log('FileSystemFileHandle: ' + typeof FileSystemFileHandle);
+      log('navigator.locks: ' + (navigator.locks ? 'si' : 'no'));
+      var SQL = await initSqlJs({ locateFile: function (f) { return './vendor/sql.js/' + f; } });
+      log('sql.js cargado');
+      var dir = await navigator.storage.getDirectory();
+      var name = 'test-sqljs.sqlite3';
+      var bytes = null;
+      try {
+        var h = await dir.getFileHandle(name);
+        var f = await h.getFile();
+        var buf = await f.arrayBuffer();
+        if (buf.byteLength > 0) bytes = new Uint8Array(buf);
+      } catch (e) { /* no existe aun */ }
+      var db = bytes ? new SQL.Database(bytes) : new SQL.Database();
+      db.exec('CREATE TABLE IF NOT EXISTS t(a); INSERT INTO t VALUES(42);');
+      var v = db.exec('SELECT sqlite_version() AS v')[0].values[0][0];
+      log('sqlite_version(): ' + v);
+      var data = db.export();
+      log('export bytes: ' + data.length);
+      var wh = await dir.getFileHandle(name, { create: true });
+      var w = await wh.createWritable();
+      await w.write(data);
+      await w.close();
+      log('archivo guardado en OPFS: ' + name);
+      db.close();
+      var h2 = await dir.getFileHandle(name);
+      var f2 = await h2.getFile();
+      var db2 = new SQL.Database(new Uint8Array(await f2.arrayBuffer()));
+      var n = db2.exec('SELECT a FROM t')[0].values[0][0];
+      log('reabierto, SELECT a FROM t: ' + n);
+      db2.close();
+      log('OK: sql.js + OPFS funciona en este navegador');
+    } catch (err) {
+      log('ERROR: ' + String((err && err.message) || err));
+    }
+  };
+  s.onerror = function () { log('ERROR: no se pudo cargar sql-wasm.js'); };
+  document.head.appendChild(s);
+})();
 </script>
 </body>
 </html>

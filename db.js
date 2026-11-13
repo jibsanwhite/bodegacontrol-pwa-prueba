@@ -11,8 +11,9 @@
    en IndexedDB se migran una sola vez (meta idb_migrated=1) y la
    IndexedDB vieja se deja intacta como respaldo; si no hay datos, se
    siembran los productos de ejemplo de siempre.
-   El worker (db-worker.js) es un modulo ES; este archivo es clasico y
-   expone las funciones como globales para app.js.
+   El worker (db-worker.js) es clasico (importScripts con sql.js);
+   este archivo es clasico y expone las funciones como globales
+   para app.js.
 */
 (function () {
   'use strict';
@@ -52,7 +53,7 @@
 
   /* ---------------- Worker ---------------- */
   function newHandle() {
-    var worker = new Worker('db-worker.js', { type: 'module' });
+    var worker = new Worker('db-worker.js');
     var h = { worker: worker, nextId: 1, pending: {} };
     worker.onmessage = function (e) {
       var m = e.data || {};
