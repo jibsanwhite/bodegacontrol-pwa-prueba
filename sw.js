@@ -1,7 +1,7 @@
 /* BodegaControl PWA - service worker, solo archivos locales, sin red externa */
-const CACHE = 'bodegacontrol-pwa-v5';
+const CACHE = 'bodegacontrol-pwa-v6';
 const FILES = ['index.html', 'style.css', 'app.js', 'db.js', 'db-worker.js', 'db-schema.sql',
-  'vendor/sqlite3/sqlite3.mjs', 'vendor/sqlite3/sqlite3.wasm',
+  'vendor/sqlite3/sqlite3.mjs', 'vendor/sqlite3/sqlite3.wasm', 'vendor/sqlite3/sqlite3-opfs-async-proxy.js',
   'manifest.json', 'icon.svg'];
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FILES); }).then(function () { return self.skipWaiting(); }));

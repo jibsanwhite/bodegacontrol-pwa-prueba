@@ -23,9 +23,7 @@ try {
     locateFile: function (f) { return new URL('./vendor/sqlite3/' + f, location.href).href; }
   });
   log('sqlite version: ' + sqlite3.version.libVersion);
-  log('OpfsDb antes de instalar VFS: ' + typeof sqlite3.oo1.OpfsDb);
-  await sqlite3.installOpfsVfs();
-  log('OpfsDb despues de installOpfsVfs: ' + typeof sqlite3.oo1.OpfsDb);
+  log('OpfsDb tras iniciar el modulo (auto-instalacion del VFS opfs): ' + typeof sqlite3.oo1.OpfsDb);
   if (typeof sqlite3.oo1.OpfsDb !== 'function') throw new Error('OPFS no disponible en este navegador');
   var db = await new sqlite3.oo1.OpfsDb('/test-opfs.sqlite3');
   await db.exec('CREATE TABLE IF NOT EXISTS t(a); INSERT INTO t VALUES(42);');

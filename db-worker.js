@@ -4,9 +4,11 @@
    COOP/COEP, asi funciona en GitHub Pages. La variante anterior
    (OpfsSAHPoolDb + installOpfsSAHPoolVfs) exigia aislamiento
    cross-origin y en Pages daba "OpfsSAHPoolDb is not a constructor".
-   OJO: OpfsDb solo existe DESPUES de llamar installOpfsVfs(), que es
-   lo que instala el VFS "opfs" y define la clase; sin esa llamada da
-   "OpfsDb is not a constructor".
+   OJO: OpfsDb solo existe si el modulo logro instalar el VFS "opfs"
+   solo, al iniciar; esa instalacion necesita el archivo
+   vendor/sqlite3/sqlite3-opfs-async-proxy.js junto al .mjs (sin el,
+   la instalacion falla en silencio y OpfsDb queda undefined).
+   NO existe sqlite3.installOpfsVfs() como funcion publica.
    Una sola conexion: si la misma pagina se abre en otra pestana, la
    segunda no puede abrir la base (OPFS bloquea el archivo) y el
    inicio devuelve error; el hilo principal lo traduce a un mensaje
@@ -30,11 +32,11 @@ function init() {
         return new URL('./vendor/sqlite3/' + f, location.href).href;
       }
     });
-    // OpfsDb: API asincrona sobre OPFS, sin SharedArrayBuffer. Hay que
-    // instalar el VFS "opfs" ANTES: es esa llamada la que define la
-    // clase sqlite3.oo1.OpfsDb. Si este navegador no tiene OPFS, la
-    // instalacion no define la clase y se lanza un error claro.
-    await sqlite3.installOpfsVfs();
+    // El VFS "opfs" se instala solo al iniciar el modulo (necesita
+    // vendor/sqlite3/sqlite3-opfs-async-proxy.js junto al .mjs). Si
+    // este navegador no tiene OPFS, la instalacion falla en silencio
+    // y la clase no existe: se lanza un error claro en vez del
+    // "is not a constructor".
     if (typeof sqlite3.oo1.OpfsDb !== 'function') {
       throw new Error('Este navegador no tiene OPFS disponible (no se pudo instalar el VFS opfs)');
     }
