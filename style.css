@@ -5,13 +5,20 @@ header{background:#1B5E20;color:#fff;padding:16px}
 header h1{margin:0;font-size:24px}
 .badge{display:inline-block;background:#FFB300;color:#222;font-weight:700;padding:4px 10px;border-radius:20px;margin-top:6px}
 .subtitle{margin:8px 0 0;font-size:13px;opacity:.9}
-/* La barra de pestanas se parte en dos filas si no cabe: con 7 pestanas
-   en una sola fila la pagina quedaba mas ancha que el telefono y al
-   desplazar se corria de lado. overflow-x:clip impide ese corrimiento
-   sin romper el sticky de la barra. */
-nav{display:flex;flex-wrap:wrap;background:#145117;position:sticky;top:0;z-index:10}
-nav button{flex:1 1 auto;border:0;background:transparent;color:#fff;padding:14px 4px;font-size:15px;cursor:pointer}
-nav button.active{background:#FFB300;color:#222;font-weight:700}
+/* Menu lateral: la barra de pestanas es un cajon que se despliega con el
+   boton de menu (D.J. lo prefirio asi antes que la cinta o las dos filas).
+   overflow-x:clip impide que la pagina se corra de lado. */
+.head-row{display:flex;align-items:center;gap:12px}
+.head-row h1{flex:1}
+#btn-menu{background:transparent;border:2px solid rgba(255,255,255,.7);color:#fff;font-size:22px;line-height:1;padding:8px 12px;border-radius:8px}
+#scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:40;display:none}
+#scrim.open{display:block}
+#tabs{position:fixed;top:0;left:0;height:100%;height:100dvh;width:min(280px,82vw);background:#145117;z-index:50;display:flex;flex-direction:column;padding:0 0 16px;overflow-y:auto;transform:translateX(-105%);transition:transform .25s ease}
+#tabs.open{transform:none}
+#tabs .drawer-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 10px;color:#fff;font-size:18px;font-weight:700}
+#btn-cerrar-menu{background:transparent;border:2px solid rgba(255,255,255,.7);color:#fff;font-size:18px;line-height:1;padding:6px 10px;border-radius:8px}
+#tabs button[data-tab]{display:block;width:100%;text-align:left;border:0;background:transparent;color:#fff;padding:16px 20px;font-size:17px;cursor:pointer;flex:none}
+#tabs button[data-tab].active{background:#FFB300;color:#222;font-weight:700}
 main{padding:16px;max-width:720px;margin:0 auto}
 .tab{display:none}
 .tab.active{display:block}

@@ -27,15 +27,18 @@
   function csvCelda(v) { var s = String(v == null ? '' : v).replace(/"/g, '""'); return '"' + s + '"'; }
 
   function renderTabs() {
-    document.querySelectorAll('#tabs button').forEach(function (b) {
+    document.querySelectorAll('#tabs button[data-tab]').forEach(function (b) {
       b.onclick = function () {
-        document.querySelectorAll('#tabs button').forEach(function (x) { x.classList.remove('active'); });
+        document.querySelectorAll('#tabs button[data-tab]').forEach(function (x) { x.classList.remove('active'); });
         document.querySelectorAll('.tab').forEach(function (x) { x.classList.remove('active'); });
         b.classList.add('active');
         el('tab-' + b.dataset.tab).classList.add('active');
+        cerrarMenu();
       };
     });
   }
+  function abrirMenu() { el('tabs').classList.add('open'); el('scrim').classList.add('open'); }
+  function cerrarMenu() { el('tabs').classList.remove('open'); el('scrim').classList.remove('open'); }
 
   function renderAll() { return Promise.all([renderProductos(), renderVentas(), renderFiados(), renderCaja(), renderTurnos()]); }
 
@@ -361,6 +364,9 @@
     db = d;
   }).then(function () {
     renderTabs();
+    el('btn-menu').onclick = function () { abrirMenu(); };
+    el('btn-cerrar-menu').onclick = function () { cerrarMenu(); };
+    el('scrim').onclick = function () { cerrarMenu(); };
     renderDenominaciones();
     el('v-unidad-venta').onchange = actualizarResumenVenta;
     el('v-metodo').onchange = function () {
