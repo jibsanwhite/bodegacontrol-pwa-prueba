@@ -1,10 +1,10 @@
 /* BodegaControl PWA - service worker, solo archivos locales, sin red externa */
-const CACHE = 'bodegacontrol-pwa-v15';
+const CACHE = 'bodegacontrol-pwa-v16';
 /* vendor/ NO va en la precache: el wasm (688 KB) tardaba minutos en bajar
    con conexion lenta y el service worker nuevo no tomaba el control hasta
    terminar, dejando la pagina nueva con los archivos viejos. vendor/ se
    guarda en cache la primera vez que se usa (ver el fetch de abajo). */
-const FILES = ['index.html', 'style.css', 'app.js', 'db.js', 'db-worker.js', 'db-schema.sql',
+const FILES = ['index.html', 'style.css', 'app.js', 'db.js', 'db-worker.js', 'db-schema.sql', 'respaldo.js',
   'manifest.json', 'icon.svg', 'icono-bodegacontrol.webp', 'icon-192.png', 'icon-512.png'];
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FILES); }).then(function () { return self.skipWaiting(); }));
