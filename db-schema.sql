@@ -1,5 +1,5 @@
 -- ============================================================================
--- BodegaControl PWA — esquema SQLite (OPFS, VFS opfs-sahpool)
+-- BodegaControl PWA — esquema SQLite (OPFS, API asincrona OpfsDb)
 -- Copia del esquema de referencia (~/workspace/bodegacontrol-sqlite/
 -- esquema.sql, v1) con extensiones PWA marcadas con "PWA:".
 -- Las extensiones existen porque la interfaz de la PWA guarda campos que el

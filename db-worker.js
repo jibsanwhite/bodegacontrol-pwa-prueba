@@ -1,7 +1,9 @@
 /* BodegaControl PWA - worker de SQLite (modulo ES).
-   Corre en un Worker dedicado: abre la base en OPFS con el VFS
-   "opfs-sahpool" (no necesita cabeceras COOP/COEP, asi funciona en
-   GitHub Pages) y responde a mensajes del hilo principal.
+   Corre en un Worker dedicado: abre la base en OPFS con la API
+   asincrona OpfsDb, que NO necesita SharedArrayBuffer ni cabeceras
+   COOP/COEP, asi funciona en GitHub Pages. La variante anterior
+   (OpfsSAHPoolDb + installOpfsSAHPoolVfs) exigia aislamiento
+   cross-origin y en Pages daba "OpfsSAHPoolDb is not a constructor".
    Una sola conexion: si la misma pagina se abre en otra pestana, la
    segunda no puede abrir la base (OPFS bloquea el archivo) y el
    inicio devuelve error; el hilo principal lo traduce a un mensaje
@@ -25,16 +27,16 @@ function init() {
         return new URL('./vendor/sqlite3/' + f, location.href).href;
       }
     });
-    // Instala el VFS opfs-sahpool. Si este navegador no tiene OPFS,
-    // lanza y el hilo principal muestra el error.
-    await sqlite3.installOpfsSAHPoolVfs();
-    db = new sqlite3.oo1.OpfsSAHPoolDb(DB_FILE);
-    db.exec('PRAGMA foreign_keys=ON');
+    // OpfsDb: API asincrona sobre OPFS, sin VFS que instalar y sin
+    // SharedArrayBuffer. Si este navegador no tiene OPFS, el
+    // constructor lanza y el hilo principal muestra el error.
+    db = await new sqlite3.oo1.OpfsDb(DB_FILE);
+    await db.exec('PRAGMA foreign_keys=ON');
     var res = await fetch(new URL('db-schema.sql', location.href));
     if (!res.ok) {
       throw new Error('No se pudo cargar db-schema.sql (HTTP ' + res.status + ')');
     }
-    db.exec(await res.text());
+    await db.exec(await res.text());
     return { sqliteVersion: sqlite3.version.libVersion, filename: db.filename };
   })();
   return ready;
@@ -51,14 +53,14 @@ self.onmessage = async function (e) {
     }
     await init();
     if (msg.op === 'query') {
-      var rows = db.selectObjects(msg.sql, msg.params || []);
+      var rows = await db.selectObjects(msg.sql, msg.params || []);
       self.postMessage({ id: id, ok: true, rows: rows });
     } else if (msg.op === 'exec') {
-      db.exec(msg.sql, { bind: msg.params || [] });
-      var lastId = db.selectValue('SELECT last_insert_rowid()');
-      self.postMessage({ id: id, ok: true, changes: db.changes(), lastInsertRowid: lastId });
+      await db.exec(msg.sql, { bind: msg.params || [] });
+      var lastId = await db.selectValue('SELECT last_insert_rowid()');
+      self.postMessage({ id: id, ok: true, changes: await db.changes(), lastInsertRowid: lastId });
     } else if (msg.op === 'close') {
-      try { db.close(); } catch (err) { /* ya cerrada */ }
+      try { await db.close(); } catch (err) { /* ya cerrada */ }
       db = null;
       ready = null;
       self.postMessage({ id: id, ok: true });
