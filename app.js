@@ -438,9 +438,14 @@
       var contado = parseFloat(el('t-cerrar-contado').value);
       if (isNaN(contado) || turnoCerrando == null) { el('t-cerrar-msg').textContent = 'Escribe cuánto contó el dependiente para poder cerrar.'; return; }
       cerrarTurno(db, turnoCerrando, contado).then(function (res) {
-        el('t-cerrar-msg').textContent = res.diferencia === 0 ?
+        var msgCierre = res.diferencia === 0 ?
           'Turno #' + res.turnoId + ' cerrado y cuadrado: contó ' + money(res.contado) + ', igual al esperado.' :
           'Turno #' + res.turnoId + ' cerrado con diferencia de ' + money(res.diferencia) + ': contó ' + money(res.contado) + ' frente a ' + money(res.esperado) + ' esperado.';
+        el('t-cerrar-msg').textContent = msgCierre;
+        /* El panel de cierre se oculta, asi que el resultado tiene que
+           verse tambien en el mensaje de "Abrir turno" (si no, queda el
+           "Turno abierto..." viejo y parece que sigue abierto). */
+        el('t-abrir-msg').textContent = msgCierre;
         turnoCerrando = null;
         el('t-cerrar-panel').style.display = 'none';
         renderAll();
