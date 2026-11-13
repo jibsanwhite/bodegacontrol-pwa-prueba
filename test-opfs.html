@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prueba OPFS + SQLite</title>
+<style>body{font-family:monospace;padding:16px}pre{white-space:pre-wrap}</style>
+</head>
+<body>
+<h1>Prueba OPFS + SQLite (solo diagnostico)</h1>
+<pre id="out">Iniciando...</pre>
+<script type="module">
+import sqlite3InitModule from './vendor/sqlite3/sqlite3.mjs';
+var out = document.getElementById('out');
+function log(s) { out.textContent += '\n' + s; }
+try {
+  log('secureContext: ' + window.isSecureContext);
+  log('crossOriginIsolated: ' + window.crossOriginIsolated);
+  log('SharedArrayBuffer: ' + typeof SharedArrayBuffer);
+  log('navigator.storage: ' + (navigator.storage ? 'si' : 'no'));
+  log('FileSystemFileHandle: ' + typeof FileSystemFileHandle);
+  var sqlite3 = await sqlite3InitModule({
+    locateFile: function (f) { return new URL('./vendor/sqlite3/' + f, location.href).href; }
+  });
+  log('sqlite version: ' + sqlite3.version.libVersion);
+  log('OpfsDb antes de instalar VFS: ' + typeof sqlite3.oo1.OpfsDb);
+  await sqlite3.installOpfsVfs();
+  log('OpfsDb despues de installOpfsVfs: ' + typeof sqlite3.oo1.OpfsDb);
+  if (typeof sqlite3.oo1.OpfsDb !== 'function') throw new Error('OPFS no disponible en este navegador');
+  var db = await new sqlite3.oo1.OpfsDb('/test-opfs.sqlite3');
+  await db.exec('CREATE TABLE IF NOT EXISTS t(a); INSERT INTO t VALUES(42);');
+  var v = await db.selectValue('SELECT a FROM t LIMIT 1');
+  log('SELECT a FROM t: ' + v);
+  await db.exec('DROP TABLE t');
+  await db.close();
+  log('OK: OpfsDb funciona en este navegador');
+} catch (err) {
+  log('ERROR: ' + String((err && err.message) || err));
+}
+</script>
+</body>
+</html>
