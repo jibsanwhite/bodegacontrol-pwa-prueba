@@ -57,7 +57,7 @@
       <div class="field"><label for="p-costo">Costo</label><input id="p-costo" type="number" min="0" step="0.01" required></div>
       <div class="field"><label for="p-efectivo">Precio en efectivo</label><input id="p-efectivo" type="number" min="0" step="0.01" required></div>
       <div class="field"><label for="p-transferencia">Precio por transferencia / pago digital</label><input id="p-transferencia" type="number" min="0" step="0.01" required></div>
-      <div class="field"><label for="p-stock">Stock</label><input id="p-stock" type="number" min="0" step="1" required></div>
+      <div class="field"><label for="p-stock">Stock</label><input id="p-stock" type="number" min="0" step="0.01" required></div>
       <div class="field"><label for="p-minimo">Stock mínimo (alerta)</label><input id="p-minimo" type="number" min="0" step="1" value="5" required></div>
       <button type="submit" class="big">Guardar producto</button>
       <button type="button" id="p-limpiar">Limpiar formulario</button>
@@ -119,6 +119,7 @@
   </section>
 </main>
 
+<script src="db.js"></script>
 <script src="app.js"></script>
 <script>
 if ('serviceWorker' in navigator) {

@@ -1,50 +1,11 @@
-/* BodegaControl PWA PRUEBA - datos solo en IndexedDB de este navegador.
-   Sin cuentas, sin nube, sin pagos. Solo productos de ejemplo. */
+/* BodegaControl PWA PRUEBA - datos en SQLite (OPFS, en este telefono).
+   Sin cuentas, sin nube, sin pagos. Solo productos de ejemplo.
+   La capa de datos vive en db.js (openDb/all/put/del con la misma
+   firma que tenia IndexedDB); este archivo es solo la interfaz. */
 (function () {
   'use strict';
-  var DB = 'bodegacontrol', VER = 2;
-  var SEED = [
-    {nombre: 'Ejemplo A', categoria: 'Ejemplo', unidad: 'unidad', costo: 100, precio_efectivo: 100, precio_transferencia: 130, stock: 50, stock_minimo: 5},
-    {nombre: 'Ejemplo B', categoria: 'Ejemplo', unidad: 'unidad', costo: 80, precio_efectivo: 80, precio_transferencia: 104, stock: 30, stock_minimo: 5},
-    {nombre: 'Ejemplo C', categoria: 'Ejemplo', unidad: 'unidad', costo: 120, precio_efectivo: 120, precio_transferencia: 156, stock: 3, stock_minimo: 5}
-  ];
   function money(n) { return '$' + Number(n).toFixed(0) + ' CUP'; }
   function fmtDate(t) { return new Date(t).toLocaleString('es-CU'); }
-  function openDb() {
-    return new Promise(function (ok, bad) {
-      var r = indexedDB.open(DB, VER);
-      r.onupgradeneeded = function () {
-        var d = r.result;
-        ['productos', 'ventas', 'fiados', 'abonos', 'cierres', 'recogidas', 'auditoria'].forEach(function (s) {
-          if (!d.objectStoreNames.contains(s)) d.createObjectStore(s, {keyPath: 'id', autoIncrement: true});
-        });
-      };
-      r.onsuccess = function () { ok(r.result); };
-      r.onerror = function () { bad(r.error); };
-    });
-  }
-  function tx(db, store, mode) { return db.transaction(store, mode).objectStore(store); }
-  function all(db, store) {
-    return new Promise(function (ok, bad) {
-      var q = tx(db, store, 'readonly').getAll();
-      q.onsuccess = function () { ok(q.result || []); };
-      q.onerror = function () { bad(q.error); };
-    });
-  }
-  function put(db, store, v) {
-    return new Promise(function (ok, bad) {
-      var q = tx(db, store, 'readwrite').put(v);
-      q.onsuccess = function () { ok(q.result); };
-      q.onerror = function () { bad(q.error); };
-    });
-  }
-  function del(db, store, id) {
-    return new Promise(function (ok, bad) {
-      var q = tx(db, store, 'readwrite').delete(id);
-      q.onsuccess = function () { ok(); };
-      q.onerror = function () { bad(q.error); };
-    });
-  }
   var db, editId = null;
   function el(id) { return document.getElementById(id); }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]; }); }
@@ -257,15 +218,11 @@
     });
   }
 
+  /* La capa de datos vive en db.js (SQLite en OPFS): openDb() migra los
+     datos viejos de IndexedDB una sola vez y siembra los productos de
+     ejemplo si la base esta vacia. */
   openDb().then(function (d) {
     db = d;
-    return all(db, 'productos').then(function (ps) {
-      if (ps.length === 0) {
-        var chain = Promise.resolve();
-        SEED.forEach(function (p) { chain = chain.then(function () { return put(db, 'productos', p); }); });
-        return chain;
-      }
-    });
   }).then(function () {
     renderTabs();
     renderDenominaciones();
@@ -315,7 +272,7 @@
       e.preventDefault();
       var v = {nombre: el('p-nombre').value.trim(), categoria: el('p-categoria').value.trim(), unidad: el('p-unidad').value.trim(),
         costo: parseFloat(el('p-costo').value), precio_efectivo: parseFloat(el('p-efectivo').value),
-        precio_transferencia: parseFloat(el('p-transferencia').value), stock: parseInt(el('p-stock').value, 10),
+        precio_transferencia: parseFloat(el('p-transferencia').value), stock: parseFloat(el('p-stock').value),
         stock_minimo: parseInt(el('p-minimo').value, 10)};
       if (!v.nombre || !v.categoria || isNaN(v.costo) || isNaN(v.precio_efectivo) || isNaN(v.precio_transferencia) || isNaN(v.stock)) {
         el('p-msg').textContent = 'Completa todos los campos con números válidos.'; return;
@@ -455,7 +412,7 @@
           if (i === 0 && t[0].toLowerCase().indexOf('nombre') >= 0) return;
           if (t.length < 8) { fail++; return; }
           var v = {nombre: t[0], categoria: t[1], unidad: t[2], costo: parseFloat(t[3]), precio_efectivo: parseFloat(t[4]),
-            precio_transferencia: parseFloat(t[5]), stock: parseInt(t[6], 10), stock_minimo: parseInt(t[7], 10)};
+            precio_transferencia: parseFloat(t[5]), stock: parseFloat(t[6]), stock_minimo: parseInt(t[7], 10)};
           if (!v.nombre || isNaN(v.costo) || isNaN(v.precio_efectivo) || isNaN(v.precio_transferencia) || isNaN(v.stock) || isNaN(v.stock_minimo)) { fail++; return; }
           chain = chain.then(function () { return put(db, 'productos', v); }).then(function () { ok++; });
         });
