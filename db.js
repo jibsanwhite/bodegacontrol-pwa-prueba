@@ -52,6 +52,9 @@
   }
 
   /* ---------------- Worker ---------------- */
+  /* Ultimo handle abierto: lo guarda openDb para que closeDb pueda
+     cerrar el worker aunque app.js no exponga su variable local db. */
+  var lastHandle = null;
   function newHandle() {
     var worker = new Worker('db-worker.js');
     var h = { worker: worker, nextId: 1, pending: {} };
@@ -86,8 +89,25 @@
   }
 
   /* ---------------- Apertura: init + migracion + siembra ---------------- */
+  /* Cierra el worker: persiste la base en memoria a OPFS, cierra la
+     base y libera el candado, y termina el worker. Se usa antes de
+     restaurar una copia: sin cerrar, el worker podria volver a
+     escribir la base vieja encima del archivo restaurado. Despues de
+     cerrar hay que recargar la pagina (openDb vuelve a abrir). Si el
+     cierre tarda, se termina el worker igual a los 3 segundos. */
+  function closeDb() {
+    var h = lastHandle;
+    if (!h) return Promise.resolve();
+    lastHandle = null;
+    var p = call(h, { op: 'close' }).catch(function () { /* ya cerrado */ });
+    var to = new Promise(function (ok) { setTimeout(ok, 3000); });
+    return Promise.race([p, to]).then(function () {
+      try { h.worker.terminate(); } catch (e) { /* ya terminado */ }
+    });
+  }
   function openDb() {
     var h = newHandle();
+    lastHandle = h;
     return call(h, { op: 'init' }).catch(function (err) {
       var msg = String((err && err.message) || err);
       if (/busy|lock|SQLITE_BUSY/i.test(msg)) {
@@ -494,6 +514,7 @@
 
   /* Globales para app.js (mismos nombres que la capa IndexedDB anterior). */
   window.openDb = openDb;
+  window.closeDb = closeDb;
   window.all = all;
   window.put = put;
   window.del = del;
