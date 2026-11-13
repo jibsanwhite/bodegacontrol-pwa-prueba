@@ -18,6 +18,7 @@
 
 <nav id="tabs" role="tablist">
   <button data-tab="vender" class="active">Vender</button>
+  <button data-tab="turnos">Turnos</button>
   <button data-tab="productos">Productos</button>
   <button data-tab="fiados">Fiados</button>
   <button data-tab="caja">Caja</button>
@@ -29,6 +30,8 @@
   <!-- VENDER -->
   <section id="tab-vender" class="tab active">
     <h2>Vender</h2>
+    <div class="field"><label for="v-dependiente">Dependiente (turno abierto)</label><select id="v-dependiente"></select></div>
+    <p id="v-turno-msg" class="msg"></p>
     <div class="field"><label for="v-producto">Producto</label><select id="v-producto"></select></div>
     <div class="field"><label for="v-cantidad">Cantidad</label><input id="v-cantidad" type="number" min="0.01" step="0.01" value="1"></div>
     <div class="field"><label for="v-unidad-venta">Unidad de venta</label>
@@ -42,6 +45,42 @@
     <p id="v-msg" class="msg"></p>
     <h3>Ventas recientes</h3>
     <ul id="v-ventas" class="list"></ul>
+  </section>
+
+  <!-- TURNOS -->
+  <section id="tab-turnos" class="tab">
+    <h2>Turnos</h2>
+    <p class="hint">Cada venta queda asignada a quien la hizo y al turno en que ocurrió. Un dependiente solo puede tener un turno abierto a la vez.</p>
+    <div class="stats" id="t-stats"></div>
+
+    <h3>Abrir turno</h3>
+    <div class="field"><label for="t-abrir-dep">Dependiente sin turno abierto</label><select id="t-abrir-dep"></select></div>
+    <div class="field"><label for="t-abrir-fondo">Fondo inicial (CUP)</label><input id="t-abrir-fondo" type="number" min="0" step="100" value="5000"></div>
+    <button id="t-abrir" class="big">Abrir turno</button>
+    <p id="t-abrir-msg" class="msg"></p>
+
+    <h3>Turnos de hoy</h3>
+    <div id="t-lista"></div>
+
+    <div id="t-cerrar-panel" style="display:none">
+      <h3 id="t-cerrar-titulo">Cerrar turno</h3>
+      <p id="t-cerrar-detalle" class="hint"></p>
+      <p><strong>Efectivo esperado en caja: <span id="t-cerrar-esperado"></span></strong></p>
+      <div class="field"><label for="t-cerrar-contado">¿Cuánto contó el dependiente? (CUP)</label><input id="t-cerrar-contado" type="number" min="0" step="0.01" placeholder="Ej: 14240"></div>
+      <p id="t-cerrar-dif" class="msg"></p>
+      <button id="t-cerrar-confirmar" class="big">Confirmar cierre</button>
+      <button id="t-cerrar-cancelar">Cancelar</button>
+      <p id="t-cerrar-msg" class="msg"></p>
+    </div>
+
+    <h3>Dependientes</h3>
+    <p class="hint">Rendimiento de hoy según las ventas de cada turno.</p>
+    <ul id="t-deps" class="list"></ul>
+    <h3>Añadir dependiente</h3>
+    <div class="field"><label for="t-dep-nombre">Nombre</label><input id="t-dep-nombre" placeholder="Ej: Ana Pérez"></div>
+    <div class="field"><label for="t-dep-rol">Rol (opcional)</label><input id="t-dep-rol" placeholder="Ej: Dependiente · Turno mañana"></div>
+    <button id="t-dep-anadir" class="big">Añadir dependiente</button>
+    <p id="t-dep-msg" class="msg"></p>
   </section>
 
   <!-- PRODUCTOS -->

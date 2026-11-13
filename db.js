@@ -31,9 +31,9 @@
   /* campo JS -> columna SQL (solo lo que la UI lee/escribe) */
   var FIELDS = {
     productos: { id: 'id', nombre: 'name', categoria: 'category', unidad: 'unit', costo: 'cost', precio_efectivo: 'cashPrice', precio_transferencia: 'transferPrice', stock: 'stock', stock_minimo: 'minStock' },
-    ventas: { id: 'id', producto: 'productName', productoId: 'productId', cantidad: 'quantity', cantidadVenta: 'cantidadVenta', unidadVenta: 'unidadVenta', precio: 'unitPrice', costo: 'costUnit', total: 'total', metodo: 'paymentMethod', fecha: 'timestamp', anulada: 'anulada', fiadoId: 'fiadoId' },
-    fiados: { id: 'id', cliente: 'clientName', detalle: 'detalle', total: 'total', fecha: 'timestamp', anulada: 'anulada' },
-    abonos: { id: 'id', fiadoId: 'creditSaleId', monto: 'amount', fecha: 'timestamp' },
+    ventas: { id: 'id', producto: 'productName', productoId: 'productId', cantidad: 'quantity', cantidadVenta: 'cantidadVenta', unidadVenta: 'unidadVenta', precio: 'unitPrice', costo: 'costUnit', total: 'total', metodo: 'paymentMethod', fecha: 'timestamp', anulada: 'anulada', fiadoId: 'fiadoId', turnoId: 'turno_id' },
+    fiados: { id: 'id', cliente: 'clientName', detalle: 'detalle', total: 'total', fecha: 'timestamp', anulada: 'anulada', turnoId: 'turno_id' },
+    abonos: { id: 'id', fiadoId: 'creditSaleId', monto: 'amount', fecha: 'timestamp', turnoId: 'turno_id' },
     cierres: { id: 'id', fecha: 'closeTimestamp', efectivo: 'cashTotal', transferencia: 'transferTotal', fiados: 'creditSalesTotal', cobros: 'debtCollectedTotal', recogidas: 'recogidas', conteo: 'conteo', diferencia: 'diferencia', ventas: 'ventas' },
     recogidas: { id: 'id', monto: 'amount', nota: 'concept', fecha: 'timestamp' },
     auditoria: { id: 'id', tipo: 'type', detalle: 'detail', fecha: 'created_at' }
@@ -272,16 +272,22 @@
     if (store === 'ventas') {
       var cant = obj.cantidad;
       var costTotal = (obj.costo || 0) * (cant || 0);
-      return Promise.resolve({
-        sql: upsertSql('sales',
-          ['id', 'timestamp', 'date', 'productId', 'productName', 'quantity', 'unitPrice', 'total', 'paymentMethod', 'client_name', 'costUnit', 'costTotal', 'profit', 'credit_amount', 'cantidadVenta', 'unidadVenta', 'fiadoId', 'anulada', 'createdAt'],
-          setExprs(['timestamp', 'date', 'productId', 'productName', 'quantity', 'unitPrice', 'total', 'paymentMethod', 'costUnit', 'costTotal', 'profit', 'credit_amount', 'cantidadVenta', 'unidadVenta', 'fiadoId', 'anulada']).concat(['client_name=COALESCE(excluded.client_name, sales.client_name)'])),
-        params: [id, obj.fecha, isoDate(obj.fecha), obj.productoId, obj.producto, cant, obj.precio, obj.total, obj.metodo, null, obj.costo || 0, costTotal, obj.total - costTotal, obj.metodo === 'Fiado' ? obj.total : 0, obj.cantidadVenta != null ? obj.cantidadVenta : null, obj.unidadVenta || null, obj.fiadoId || null, obj.anulada ? 1 : 0, now]
+      /* Una venta nueva exige turno abierto; la anulacion de una venta
+         vieja (turno cerrado o sin turno) no se bloquea. */
+      return validarTurnoParaVenta(h, obj.turnoId, id == null, !!obj.anulada).then(function () {
+        return {
+          sql: upsertSql('sales',
+            ['id', 'timestamp', 'date', 'productId', 'productName', 'quantity', 'unitPrice', 'total', 'paymentMethod', 'client_name', 'costUnit', 'costTotal', 'profit', 'credit_amount', 'cantidadVenta', 'unidadVenta', 'fiadoId', 'turno_id', 'anulada', 'createdAt'],
+            setExprs(['timestamp', 'date', 'productId', 'productName', 'quantity', 'unitPrice', 'total', 'paymentMethod', 'costUnit', 'costTotal', 'profit', 'credit_amount', 'cantidadVenta', 'unidadVenta', 'fiadoId', 'turno_id', 'anulada']).concat(['client_name=COALESCE(excluded.client_name, sales.client_name)'])),
+          params: [id, obj.fecha, isoDate(obj.fecha), obj.productoId, obj.producto, cant, obj.precio, obj.total, obj.metodo, null, obj.costo || 0, costTotal, obj.total - costTotal, obj.metodo === 'Fiado' ? obj.total : 0, obj.cantidadVenta != null ? obj.cantidadVenta : null, obj.unidadVenta || null, obj.fiadoId || null, obj.turnoId || null, obj.anulada ? 1 : 0, now]
+        };
       });
     }
     if (store === 'fiados') {
       var parsed = parseDetalle(obj.detalle);
-      return query(h, 'SELECT id FROM products WHERE name=?', [parsed.name || '']).then(function (rows) {
+      return validarTurnoParaVenta(h, obj.turnoId, id == null, !!obj.anulada).then(function () {
+        return query(h, 'SELECT id FROM products WHERE name=?', [parsed.name || '']);
+      }).then(function (rows) {
         var pid = rows.length ? rows[0].id : null;
         if (pid == null) {
           return query(h, 'SELECT id FROM products ORDER BY id LIMIT 1').then(function (r2) {
@@ -293,20 +299,20 @@
       }).then(function (pid) {
         return {
           sql: upsertSql('credit_sales',
-            ['id', 'timestamp', 'clientName', 'productId', 'productName', 'quantity', 'total', 'amountPaid', 'isPaid', 'detalle', 'anulada'],
-            setExprs(['timestamp', 'clientName', 'productId', 'productName', 'quantity', 'total', 'detalle', 'anulada'])),
-          params: [id, obj.fecha, obj.cliente, pid, parsed.name || obj.detalle, parsed.cant || 0, obj.total, 0, 0, obj.detalle, obj.anulada ? 1 : 0]
+            ['id', 'timestamp', 'clientName', 'productId', 'productName', 'quantity', 'total', 'amountPaid', 'isPaid', 'detalle', 'turno_id', 'anulada'],
+            setExprs(['timestamp', 'clientName', 'productId', 'productName', 'quantity', 'total', 'detalle', 'turno_id', 'anulada'])),
+          params: [id, obj.fecha, obj.cliente, pid, parsed.name || obj.detalle, parsed.cant || 0, obj.total, 0, 0, obj.detalle, obj.turnoId || null, obj.anulada ? 1 : 0]
         };
       });
     }
     if (store === 'abonos') {
-      return query(h, 'SELECT clientName FROM credit_sales WHERE id=?', [obj.fiadoId]).then(function (rows) {
+      return query(h, 'SELECT clientName, turno_id FROM credit_sales WHERE id=?', [obj.fiadoId]).then(function (rows) {
         if (!rows.length) throw new Error('Fiado no encontrado para el abono');
         return {
           sql: upsertSql('debt_payments',
-            ['id', 'creditSaleId', 'clientName', 'amount', 'timestamp'],
-            setExprs(['creditSaleId', 'clientName', 'amount', 'timestamp'])),
-          params: [id, obj.fiadoId, rows[0].clientName, obj.monto, obj.fecha]
+            ['id', 'creditSaleId', 'clientName', 'amount', 'turno_id', 'timestamp'],
+            setExprs(['creditSaleId', 'clientName', 'amount', 'turno_id', 'timestamp'])),
+          params: [id, obj.fiadoId, rows[0].clientName, obj.monto, rows[0].turno_id != null ? rows[0].turno_id : (obj.turnoId || null), obj.fecha]
         };
       });
     }
@@ -349,6 +355,20 @@
       return exec(h, 'UPDATE credit_sales SET amountPaid=?, isPaid=? WHERE id=?', [paid, isPaid, creditSaleId]);
     });
   }
+  /* Fase 2: una venta (o fiado) nueva exige un turno abierto. Si el
+     turno viene dado, tiene que existir y estar abierto. La anulacion
+     de una venta vieja no se bloquea aunque su turno este cerrado. */
+  function validarTurnoParaVenta(h, turnoId, esNuevo, esAnulacion) {
+    if (esAnulacion) return Promise.resolve();
+    if (turnoId == null) {
+      if (esNuevo) return Promise.reject(new Error('Para vender, el dependiente necesita un turno abierto. Abre un turno primero.'));
+      return Promise.resolve();
+    }
+    return query(h, 'SELECT id, estado FROM turnos WHERE id=?', [turnoId]).then(function (rows) {
+      if (!rows.length) throw new Error('El turno #' + turnoId + ' no existe.');
+      if (rows[0].estado !== 'abierto') throw new Error('El turno #' + turnoId + ' esta cerrado. Abre un turno nuevo para vender.');
+    });
+  }
   function put(h, store, obj) {
     return buildPut(h, store, obj).then(function (built) {
       return exec(h, built.sql, built.params).then(function (res) {
@@ -368,9 +388,127 @@
     return exec(h, 'DELETE FROM ' + TABLES[store] + ' WHERE id=?', [id]).then(function () { });
   }
 
+  /* ---------------- Fase 2: turnos y dependientes ---------------- */
+  function turnoAbiertoDe(h, dependienteId) {
+    return query(h, "SELECT * FROM turnos WHERE dependiente_id=? AND estado='abierto' ORDER BY id LIMIT 1", [dependienteId]).then(function (rows) { return rows.length ? rows[0] : null; });
+  }
+  function listDependientes(h) {
+    return query(h, 'SELECT * FROM dependientes ORDER BY id');
+  }
+  function crearDependiente(h, nombre, rol) {
+    return exec(h, 'INSERT INTO dependientes(nombre, rol, activo, creado_en) VALUES(?,?,1,?)', [nombre, rol || '', Date.now()]).then(function (res) { return res.lastInsertRowid; });
+  }
+  function desactivarDependiente(h, id) {
+    return turnoAbiertoDe(h, id).then(function (t) {
+      if (t) throw new Error('No se puede desactivar: tiene el turno #' + t.id + ' abierto. Cierralo primero.');
+      return exec(h, 'UPDATE dependientes SET activo=0 WHERE id=?', [id]);
+    });
+  }
+  function reactivarDependiente(h, id) {
+    return exec(h, 'UPDATE dependientes SET activo=1 WHERE id=?', [id]);
+  }
+  function abrirTurno(h, dependienteId, fondo) {
+    return query(h, 'SELECT id, activo FROM dependientes WHERE id=?', [dependienteId]).then(function (rows) {
+      if (!rows.length) throw new Error('Dependiente no encontrado.');
+      if (!rows[0].activo) throw new Error('Ese dependiente esta desactivado.');
+      return turnoAbiertoDe(h, dependienteId);
+    }).then(function (t) {
+      if (t) throw new Error('Ese dependiente ya tiene el turno #' + t.id + ' abierto. Un dependiente solo puede tener un turno abierto a la vez.');
+      var ahora = Date.now();
+      return exec(h, "INSERT INTO turnos(dependiente_id, fecha, hora_apertura, fondo_inicial, estado) VALUES(?,?,?,?,'abierto')",
+        [dependienteId, isoDate(ahora), ahora, fondo || 0]).then(function (res) { return res.lastInsertRowid; });
+    });
+  }
+  function listTurnosDia(h, fecha) {
+    var f = fecha || isoDate();
+    return query(h, 'SELECT t.*, d.nombre AS dependiente, d.rol AS rol FROM turnos t JOIN dependientes d ON d.id=t.dependiente_id WHERE t.fecha=? ORDER BY t.id DESC', [f]);
+  }
+  function turnoResumen(h, turnoId) {
+    return Promise.all([
+      query(h, "SELECT COALESCE(SUM(total),0) AS t, COUNT(*) AS n FROM sales WHERE turno_id=? AND anulada=0 AND paymentMethod='Efectivo'", [turnoId]),
+      query(h, "SELECT COALESCE(SUM(total),0) AS t, COUNT(*) AS n FROM sales WHERE turno_id=? AND anulada=0 AND paymentMethod='Transferencia'", [turnoId]),
+      query(h, "SELECT COALESCE(SUM(total),0) AS t, COUNT(*) AS n FROM sales WHERE turno_id=? AND anulada=0 AND paymentMethod='Fiado'", [turnoId]),
+      query(h, 'SELECT COALESCE(SUM(monto),0) AS rec, COUNT(*) AS n FROM recogidas_turno WHERE turno_id=?', [turnoId]),
+      query(h, 'SELECT fondo_inicial, estado, contado, diferencia FROM turnos WHERE id=?', [turnoId])
+    ]).then(function (r) {
+      var t = r[4].length ? r[4][0] : null;
+      if (!t) throw new Error('Turno no encontrado.');
+      var efectivo = r[0][0].t || 0;
+      var transferencia = r[1][0].t || 0;
+      var fiado = r[2][0].t || 0;
+      var recogidas = r[3][0].rec || 0;
+      return { turnoId: turnoId, fondo: t.fondo_inicial || 0, efectivo: efectivo, transferencia: transferencia, fiado: fiado,
+        recogidas: recogidas, nRecogidas: r[3][0].n || 0,
+        nVentas: (r[0][0].n || 0) + (r[1][0].n || 0) + (r[2][0].n || 0),
+        total: efectivo + transferencia + fiado,
+        esperado: (t.fondo_inicial || 0) + efectivo - recogidas,
+        estado: t.estado, contado: t.contado, diferencia: t.diferencia };
+    });
+  }
+  function cerrarTurno(h, turnoId, contado) {
+    return turnoResumen(h, turnoId).then(function (res) {
+      if (res.estado !== 'abierto') throw new Error('El turno #' + turnoId + ' ya esta cerrado.');
+      var dif = Math.round((contado - res.esperado) * 100) / 100;
+      return exec(h, 'UPDATE turnos SET estado=?, hora_cierre=?, contado=?, diferencia=? WHERE id=? AND estado=?',
+        ['cerrado', Date.now(), contado, dif, turnoId, 'abierto']).then(function () {
+        return { turnoId: turnoId, esperado: res.esperado, contado: contado, diferencia: dif };
+      });
+    });
+  }
+  function registrarRecogidaTurno(h, turnoId, monto, nota) {
+    return query(h, 'SELECT id, estado FROM turnos WHERE id=?', [turnoId]).then(function (rows) {
+      if (!rows.length) throw new Error('Turno no encontrado.');
+      if (rows[0].estado !== 'abierto') throw new Error('El turno #' + turnoId + ' esta cerrado. No se puede registrar recogida.');
+      return exec(h, 'INSERT INTO recogidas_turno(turno_id, monto, nota, timestamp) VALUES(?,?,?,?)',
+        [turnoId, monto, nota || '', Date.now()]).then(function (res) {
+        return exec(h, 'UPDATE turnos SET recogidas = recogidas + ? WHERE id=?', [monto, turnoId]).then(function () { return res.lastInsertRowid; });
+      });
+    });
+  }
+  function listRecogidasTurno(h, turnoId) {
+    return query(h, 'SELECT * FROM recogidas_turno WHERE turno_id=? ORDER BY id', [turnoId]);
+  }
+  function estadisticasDia(h, fecha) {
+    var f = fecha || isoDate();
+    return Promise.all([
+      query(h, "SELECT COUNT(*) AS n FROM turnos WHERE fecha=? AND estado='abierto'", [f]),
+      query(h, "SELECT COUNT(*) AS n FROM turnos WHERE fecha=? AND estado='cerrado'", [f]),
+      query(h, 'SELECT COALESCE(SUM(total),0) AS t, COUNT(*) AS n FROM sales WHERE date=? AND anulada=0', [f]),
+      query(h, "SELECT COALESCE(SUM(total),0) AS t FROM sales WHERE date=? AND anulada=0 AND paymentMethod='Fiado'", [f])
+    ]).then(function (r) {
+      return { abiertos: r[0][0].n, cerrados: r[1][0].n, ventasHoy: r[2][0].t || 0, nVentasHoy: r[2][0].n || 0, fiadoHoy: r[3][0].t || 0 };
+    });
+  }
+  function rendimientoDependientes(h, fecha) {
+    var f = fecha || isoDate();
+    return query(h,
+      'SELECT d.id, d.nombre, d.rol, d.activo, ' +
+      'COALESCE(SUM(CASE WHEN s.anulada=0 THEN s.total ELSE 0 END),0) AS total, ' +
+      'COALESCE(SUM(CASE WHEN s.anulada=0 THEN 1 ELSE 0 END),0) AS nVentas, ' +
+      "(SELECT t.id FROM turnos t WHERE t.dependiente_id=d.id AND t.estado='abierto' LIMIT 1) AS turnoAbierto " +
+      'FROM dependientes d ' +
+      'LEFT JOIN turnos t2 ON t2.dependiente_id=d.id AND t2.fecha=? ' +
+      'LEFT JOIN sales s ON s.turno_id=t2.id ' +
+      'GROUP BY d.id ORDER BY d.id', [f]);
+  }
+
   /* Globales para app.js (mismos nombres que la capa IndexedDB anterior). */
   window.openDb = openDb;
   window.all = all;
   window.put = put;
   window.del = del;
+  /* Fase 2 */
+  window.listDependientes = listDependientes;
+  window.crearDependiente = crearDependiente;
+  window.desactivarDependiente = desactivarDependiente;
+  window.reactivarDependiente = reactivarDependiente;
+  window.abrirTurno = abrirTurno;
+  window.turnoAbiertoDe = turnoAbiertoDe;
+  window.listTurnosDia = listTurnosDia;
+  window.turnoResumen = turnoResumen;
+  window.cerrarTurno = cerrarTurno;
+  window.registrarRecogidaTurno = registrarRecogidaTurno;
+  window.listRecogidasTurno = listRecogidasTurno;
+  window.estadisticasDia = estadisticasDia;
+  window.rendimientoDependientes = rendimientoDependientes;
 })();

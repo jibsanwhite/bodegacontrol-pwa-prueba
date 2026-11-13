@@ -19,6 +19,25 @@ URL en vivo: https://jibsanwhite.github.io/bodegacontrol-pwa-prueba/
 - Funciona sin internet una vez cargada (service worker); los datos viven
   en el teléfono.
 
+## Qué hace (Fase 2: turnos y dependientes)
+
+- Turno por dependiente: un solo turno abierto por dependiente, con
+  fondo inicial en CUP.
+- Una venta solo se registra si el dependiente tiene turno abierto; cada
+  venta queda asignada a su dependiente y a su número de turno (efectivo,
+  transferencia +30%, fiado).
+- Cierre de turno: esperado = fondo inicial + ventas en efectivo −
+  recogidas parciales; el dependiente escribe cuánto contó y la
+  diferencia se ve (cuadra / sobra / falta). Un turno cerrado ya no
+  acepta ventas.
+- Recogida parcial durante el turno (saca efectivo de la caja y baja el
+  esperado; también queda en la Caja del día, que es la misma caja).
+- Dependientes con rendimiento del día (total vendido, nº de ventas,
+  turno abierto o no); se pueden añadir y desactivar (nunca se borra
+  uno con turnos).
+- Transferencia y fiado no entran en el conteo de efectivo, pero sí en
+  el resumen del turno.
+
 ## Cómo guarda los datos
 
 - Base de datos SQLite real (archivo `bodegacontrol.sqlite3` en OPFS, el
@@ -68,5 +87,6 @@ la versión nueva (cerrar la pestaña y volver a abrir).
 
 ## Estado
 
-Prueba (Fase 1). La Fase 2 (turnos y dependientes) está pendiente de
-definir.
+Prueba (Fase 1 + Fase 2: turnos y dependientes). La base de los
+teléfonos con Fase 1 se migra sola al abrir la app (tablas nuevas y
+columna turno_id; las ventas viejas quedan sin turno, legibles).

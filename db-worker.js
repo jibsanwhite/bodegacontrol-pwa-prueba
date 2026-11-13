@@ -53,6 +53,40 @@ async function persist() {
   await w.close();
 }
 
+/* ---------------- Migracion Fase 2 (turnos y dependientes) ----------------
+   Las bases Fase 1 que ya existen en los telefonos no tienen estas tablas
+   ni la columna turno_id. La migracion es idempotente: CREATE TABLE IF
+   NOT EXISTS, ALTER solo si PRAGMA table_info no muestra la columna, y
+   la siembra del dependiente "Dueno" solo si no hay dependientes.
+   Corre en cada arranque (base nueva y base vieja); una base nueva ya
+   trae las tablas desde db-schema.sql, asi que no hace nada de mas.
+   La marca meta fase2_migrated='1' se escribe solo tras el exito. */
+var FASE2_DDL = [
+  "CREATE TABLE IF NOT EXISTS dependientes (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT NOT NULL, rol TEXT, activo INTEGER NOT NULL DEFAULT 1, creado_en INTEGER NOT NULL DEFAULT 0)",
+  "CREATE INDEX IF NOT EXISTS idx_dependientes_activo ON dependientes(activo)",
+  "CREATE TABLE IF NOT EXISTS turnos (id INTEGER PRIMARY KEY AUTOINCREMENT, dependiente_id INTEGER NOT NULL REFERENCES dependientes(id), fecha TEXT, hora_apertura INTEGER NOT NULL DEFAULT 0, hora_cierre INTEGER, fondo_inicial REAL NOT NULL DEFAULT 0, recogidas REAL NOT NULL DEFAULT 0, contado REAL, diferencia REAL, estado TEXT NOT NULL DEFAULT 'abierto')",
+  "CREATE INDEX IF NOT EXISTS idx_turnos_dep ON turnos(dependiente_id, estado)",
+  "CREATE INDEX IF NOT EXISTS idx_turnos_fecha ON turnos(fecha)",
+  "CREATE TABLE IF NOT EXISTS recogidas_turno (id INTEGER PRIMARY KEY AUTOINCREMENT, turno_id INTEGER NOT NULL REFERENCES turnos(id), monto REAL NOT NULL DEFAULT 0, nota TEXT, timestamp INTEGER NOT NULL DEFAULT 0)",
+  "CREATE INDEX IF NOT EXISTS idx_recogidas_turno ON recogidas_turno(turno_id)"
+];
+function columnExists(table, col) {
+  var rows = toObjects(db.exec('PRAGMA table_info(' + table + ')'));
+  return rows.some(function (r) { return r.name === col; });
+}
+function migrateFase2() {
+  FASE2_DDL.forEach(function (sql) { db.exec(sql); });
+  /* ALTER solo si falta la columna (las bases Fase 1 no la tienen). */
+  if (!columnExists('sales', 'turno_id')) db.exec('ALTER TABLE sales ADD COLUMN turno_id INTEGER');
+  if (!columnExists('credit_sales', 'turno_id')) db.exec('ALTER TABLE credit_sales ADD COLUMN turno_id INTEGER');
+  if (!columnExists('debt_payments', 'turno_id')) db.exec('ALTER TABLE debt_payments ADD COLUMN turno_id INTEGER');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_sales_turno ON sales(turno_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_credit_turno ON credit_sales(turno_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_debt_turno ON debt_payments(turno_id)');
+  db.exec("INSERT INTO dependientes(nombre, rol, activo, creado_en) SELECT 'Dueño', 'Dueño', 1, 0 WHERE NOT EXISTS (SELECT 1 FROM dependientes)");
+  db.exec("INSERT OR REPLACE INTO meta(key,value) VALUES('fase2_migrated','1')");
+}
+
 async function loadOrCreate() {
   var dir = await opfsDir();
   var bytes = null;
@@ -69,8 +103,9 @@ async function loadOrCreate() {
     var res = await fetch(new URL('db-schema.sql', self.location.href));
     if (!res.ok) throw new Error('No se pudo cargar db-schema.sql (HTTP ' + res.status + ')');
     db.exec(await res.text());
-    await persist();
   }
+  migrateFase2();
+  await persist();
   db.run('PRAGMA foreign_keys=ON');
 }
 

@@ -83,12 +83,14 @@ CREATE TABLE IF NOT EXISTS sales (
     cantidadVenta REAL,
     unidadVenta   TEXT,
     fiadoId       INTEGER,
+    turno_id      INTEGER,
     anulada       INTEGER NOT NULL DEFAULT 0,
     createdAt     INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_sales_product ON sales(productId, timestamp);
 CREATE INDEX IF NOT EXISTS idx_sales_date ON sales(date);
 CREATE INDEX IF NOT EXISTS idx_sales_client ON sales(client_name);
+CREATE INDEX IF NOT EXISTS idx_sales_turno ON sales(turno_id);
 
 -- Ventas a credito (fiados). PWA antes: store IndexedDB 'fiados'.
 -- PWA: detalle = texto que muestra la UI (ej. "2 Lb x Ejemplo A");
@@ -104,11 +106,13 @@ CREATE TABLE IF NOT EXISTS credit_sales (
     amountPaid  REAL NOT NULL DEFAULT 0,
     isPaid      INTEGER NOT NULL DEFAULT 0,
     sale_code   TEXT UNIQUE,
+    turno_id    INTEGER,
     detalle     TEXT,
     anulada     INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_credit_client ON credit_sales(clientName);
 CREATE INDEX IF NOT EXISTS idx_credit_sale ON credit_sales(sale_code);
+CREATE INDEX IF NOT EXISTS idx_credit_turno ON credit_sales(turno_id);
 
 -- Abonos a fiados. PWA antes: store IndexedDB 'abonos'.
 CREATE TABLE IF NOT EXISTS debt_payments (
@@ -116,9 +120,11 @@ CREATE TABLE IF NOT EXISTS debt_payments (
     creditSaleId INTEGER NOT NULL REFERENCES credit_sales(id),
     clientName   TEXT NOT NULL,
     amount       REAL NOT NULL DEFAULT 0,
+    turno_id     INTEGER,
     timestamp    INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_debt_credit ON debt_payments(creditSaleId);
+CREATE INDEX IF NOT EXISTS idx_debt_turno ON debt_payments(turno_id);
 
 -- Cierres de caja diarios. PWA antes: store IndexedDB 'cierres'.
 -- PWA: recogidas/conteo/diferencia/ventas son campos del cierre de la UI
@@ -207,6 +213,49 @@ CREATE TABLE IF NOT EXISTS loans (
     paid    REAL NOT NULL DEFAULT 0,
     notes   TEXT
 );
+
+-- ============================================================================
+-- Fase 2: turnos y dependientes.
+-- Un dependiente tiene como maximo un turno abierto a la vez. Cada venta
+-- queda asignada a su dependiente y a su turno (sales.turno_id);
+-- turno_id NULL = venta anterior a Fase 2, sin atribuir. El fiado hereda
+-- el turno de su venta y el abono hereda el turno de su fiado.
+-- Esperado de un turno = fondo_inicial + ventas en efectivo (no anuladas)
+-- - recogidas del turno. Transferencia y fiado no entran en el conteo de
+-- efectivo, pero si en el resumen del turno.
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS dependientes (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre     TEXT NOT NULL,
+    rol        TEXT,
+    activo     INTEGER NOT NULL DEFAULT 1,
+    creado_en  INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_dependientes_activo ON dependientes(activo);
+
+CREATE TABLE IF NOT EXISTS turnos (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    dependiente_id INTEGER NOT NULL REFERENCES dependientes(id),
+    fecha         TEXT,
+    hora_apertura INTEGER NOT NULL DEFAULT 0,
+    hora_cierre   INTEGER,
+    fondo_inicial REAL NOT NULL DEFAULT 0,
+    recogidas     REAL NOT NULL DEFAULT 0,
+    contado       REAL,
+    diferencia    REAL,
+    estado        TEXT NOT NULL DEFAULT 'abierto'
+);
+CREATE INDEX IF NOT EXISTS idx_turnos_dep ON turnos(dependiente_id, estado);
+CREATE INDEX IF NOT EXISTS idx_turnos_fecha ON turnos(fecha);
+
+CREATE TABLE IF NOT EXISTS recogidas_turno (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    turno_id   INTEGER NOT NULL REFERENCES turnos(id),
+    monto      REAL NOT NULL DEFAULT 0,
+    nota       TEXT,
+    timestamp  INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_recogidas_turno ON recogidas_turno(turno_id);
 
 -- Meta / configuracion.
 -- idb_migrated = '1' cuando la migracion unica desde IndexedDB ya corrio.

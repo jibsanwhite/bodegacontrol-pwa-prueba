@@ -37,7 +37,7 @@
     });
   }
 
-  function renderAll() { return Promise.all([renderProductos(), renderVentas(), renderFiados(), renderCaja()]); }
+  function renderAll() { return Promise.all([renderProductos(), renderVentas(), renderFiados(), renderCaja(), renderTurnos()]); }
 
   function renderProductos() {
     return all(db, 'productos').then(function (ps) {
@@ -112,12 +112,24 @@
     });
   }
   function renderVentas() {
-    return all(db, 'ventas').then(function (vs) {
+    return Promise.all([all(db, 'ventas'), listTurnosDia(db), listDependientes(db)]).then(function (r) {
+      var vs = r[0], turnos = r[1], deps = r[2];
+      var mapaTurno = {};
+      turnos.forEach(function (t) { mapaTurno[t.id] = t; });
+      var mapaDep = {};
+      deps.forEach(function (d) { mapaDep[d.id] = d; });
       vs.sort(function (a, b) { return b.fecha - a.fecha; });
       el('v-ventas').innerHTML = vs.slice(0, 20).map(function (v) {
         var cantTxt = v.cantidadVenta != null ? fmtCant(v.cantidadVenta, v.unidadVenta) : v.cantidad;
+        var turnoTxt = '';
+        if (v.turnoId) {
+          var t = mapaTurno[v.turnoId];
+          turnoTxt = ' · Turno #' + v.turnoId + (t ? ' · ' + esc(t.dependiente) : '');
+        } else {
+          turnoTxt = ' · Sin turno';
+        }
         return '<li>' + esc(v.producto) + ' · ' + cantTxt + ' × ' + money(v.precio) + ' = ' + money(v.total) +
-          ' · ' + esc(v.metodo) + (v.anulada ? ' · <strong>ANULADA</strong>' : '') + ' · ' + fmtDate(v.fecha) +
+          ' · ' + esc(v.metodo) + turnoTxt + (v.anulada ? ' · <strong>ANULADA</strong>' : '') + ' · ' + fmtDate(v.fecha) +
           (v.anulada ? '' : ' <button data-anular="' + v.id + '">Anular venta</button>') + '</li>';
       }).join('') || '<li>Sin ventas todavía.</li>';
       document.querySelectorAll('[data-anular]').forEach(function (b) {
@@ -218,6 +230,130 @@
     });
   }
 
+  /* ---------------- Fase 2: turnos y dependientes ---------------- */
+  var depsCache = {};
+  var turnoCerrando = null;
+  function actualizarSelectorDependiente(rend) {
+    var conTurno = (rend || []).filter(function (d) { return d.turnoAbierto; });
+    var sel = el('v-dependiente');
+    if (!conTurno.length) {
+      sel.innerHTML = '<option value="">— Sin turnos abiertos —</option>';
+      el('v-turno-msg').innerHTML = 'Nadie tiene turno abierto: ninguna venta puede registrarse. <button id="v-ir-turnos" type="button">Abrir turno</button>';
+      el('v-ir-turnos').onclick = function () { document.querySelector('[data-tab="turnos"]').click(); };
+      el('v-vender').disabled = true;
+      return;
+    }
+    sel.innerHTML = conTurno.map(function (d) { return '<option value="' + d.id + '">' + esc(d.nombre) + ' — Turno #' + d.turnoAbierto + ' abierto</option>'; }).join('');
+    el('v-turno-msg').textContent = '';
+    el('v-vender').disabled = false;
+  }
+  function renderTurnos() {
+    return Promise.all([estadisticasDia(db), listTurnosDia(db), rendimientoDependientes(db), listDependientes(db)]).then(function (r) {
+      var est = r[0], turnos = r[1], rend = r[2], deps = r[3];
+      deps.forEach(function (d) { depsCache[d.id] = d; });
+      el('t-stats').innerHTML =
+        '<div class="stat"><label>Turnos abiertos ahora</label><strong>' + est.abiertos + '</strong><span>' + (est.abiertos ? 'vendiendo' : 'Nadie vendiendo') + '</span></div>' +
+        '<div class="stat"><label>Turnos cerrados hoy</label><strong>' + est.cerrados + '</strong><span>Con cierre y conteo registrado</span></div>' +
+        '<div class="stat"><label>Ventas de hoy</label><strong>' + money(est.ventasHoy) + '</strong><span>' + est.nVentasHoy + ' operaciones registradas</span></div>' +
+        '<div class="stat"><label>Fiado de hoy</label><strong>' + money(est.fiadoHoy) + '</strong><span>Queda fuera del conteo de caja</span></div>';
+      var sinTurno = deps.filter(function (d) {
+        return d.activo && !rend.some(function (x) { return x.id === d.id && x.turnoAbierto; });
+      });
+      el('t-abrir-dep').innerHTML = sinTurno.map(function (d) { return '<option value="' + d.id + '">' + esc(d.nombre) + (d.rol ? ' — ' + esc(d.rol) : '') + '</option>'; }).join('') || '<option value="">— Nadie disponible —</option>';
+      var resums = turnos.map(function (t) { return turnoResumen(db, t.id); });
+      return Promise.all(resums).then(function (res) {
+        var mapa = {};
+        res.forEach(function (x) { mapa[x.turnoId] = x; });
+        el('t-lista').innerHTML = turnos.map(function (t) {
+          var s = mapa[t.id];
+          var abierto = t.estado === 'abierto';
+          var linea = '<div class="turno' + (abierto ? ' activo' : '') + '"><strong>' + esc(t.dependiente) + ' · Turno #' + t.id + '</strong> ' +
+            '<span class="badge-turno ' + (abierto ? 'abierto' : 'cerrado') + '">' + (abierto ? '● Abierto' : 'Cerrado') + '</span><br>' +
+            'Apertura: ' + fmtDate(t.hora_apertura) + (abierto ? '' : ' · Cerró: ' + fmtDate(t.hora_cierre)) + '<br>' +
+            'Fondo: ' + money(t.fondo_inicial) + ' · Ventas: ' + money(s.total) + ' (' + s.nVentas + ') · Efectivo: ' + money(s.efectivo) +
+            ' · Transferencia: ' + money(s.transferencia) + ' · Fiado: ' + money(s.fiado) + '<br>' +
+            'Recogidas: ' + money(s.recogidas) + ' · Efectivo esperado: <strong>' + money(s.esperado) + '</strong><br>';
+          if (abierto) {
+            linea += '<div class="field"><label>Recogida parcial (CUP)</label><input type="number" min="0" step="0.01" data-rec-monto="' + t.id + '" placeholder="Ej: 10000"></div>' +
+              '<div class="field"><label>Nota (opcional)</label><input data-rec-nota="' + t.id + '" placeholder="Ej: Pago a proveedor"></div>' +
+              '<button data-rec="' + t.id + '">Registrar recogida</button> ' +
+              '<button data-cerrar-turno="' + t.id + '">Cerrar este turno</button>';
+          } else {
+            var dif = t.diferencia || 0;
+            linea += 'Contó ' + money(t.contado != null ? t.contado : 0) + ' · Diferencia: ' +
+              (dif === 0 ? '<span class="diff-ok">$0 — cuadra</span>' : '<span class="diff-bad">' + money(dif) + '</span>') +
+              ' · ' + s.nVentas + ' ventas';
+          }
+          return linea + '</div>';
+        }).join('') || '<p class="hint">No hay turnos hoy todavía.</p>';
+        document.querySelectorAll('[data-rec]').forEach(function (b) {
+          b.onclick = function () { registrarRecogida(Number(b.dataset.rec)); };
+        });
+        document.querySelectorAll('[data-cerrar-turno]').forEach(function (b) {
+          b.onclick = function () { mostrarPanelCierre(Number(b.dataset.cerrarTurno)); };
+        });
+        var max = Math.max.apply(null, rend.map(function (d) { return d.total; }).concat([1]));
+        el('t-deps').innerHTML = rend.map(function (d) {
+          var pct = Math.round(d.total / max * 100);
+          return '<li><strong>' + esc(d.nombre) + '</strong>' + (d.rol ? ' · ' + esc(d.rol) : '') + (d.activo ? '' : ' · <span class="alerta">DESACTIVADO</span>') +
+            '<br>Total vendido hoy: <strong>' + money(d.total) + '</strong> · ' + d.nVentas + ' ventas' +
+            '<br>' + (d.turnoAbierto ? 'Turno #' + d.turnoAbierto + ' abierto' : 'Sin turno abierto') +
+            '<div class="bar"><i style="width:' + pct + '%"></i></div>' +
+            (d.activo ? (d.turnoAbierto ? '' : ' <button data-desactivar="' + d.id + '">Desactivar</button>') : ' <button data-reactivar="' + d.id + '">Reactivar</button>') + '</li>';
+        }).join('') || '<li>Sin dependientes.</li>';
+        document.querySelectorAll('[data-desactivar]').forEach(function (b) {
+          b.onclick = function () {
+            var id = Number(b.dataset.desactivar);
+            desactivarDependiente(db, id).then(renderAll).catch(function (e) { alert(e.message); });
+          };
+        });
+        document.querySelectorAll('[data-reactivar]').forEach(function (b) {
+          b.onclick = function () { reactivarDependiente(db, Number(b.dataset.reactivar)).then(renderAll); };
+        });
+        actualizarSelectorDependiente(rend);
+      });
+    });
+  }
+  function registrarRecogida(turnoId) {
+    var monto = parseFloat(document.querySelector('[data-rec-monto="' + turnoId + '"]').value);
+    var nota = (document.querySelector('[data-rec-nota="' + turnoId + '"]').value || '').trim();
+    if (isNaN(monto) || monto <= 0) { alert('Escribe un monto mayor que 0.'); return; }
+    turnoResumen(db, turnoId).then(function (res) {
+      if (monto > res.esperado) { alert('No puedes recoger más que el efectivo esperado: ' + money(res.esperado)); return; }
+      return registrarRecogidaTurno(db, turnoId, monto, nota).then(function () {
+        /* La recogida saca efectivo de la misma caja fisica: tambien queda
+           en la Caja del dia para que el conteo de caja cuadre. */
+        return put(db, 'recogidas', {monto: monto, nota: (nota ? 'Turno #' + turnoId + ' — ' + nota : 'Turno #' + turnoId), fecha: Date.now()});
+      }).then(function () {
+        return logAuditoria('recogida turno', 'Turno #' + turnoId + ': ' + money(monto) + (nota ? ' — ' + nota : ''));
+      }).then(renderAll);
+    });
+  }
+  function mostrarPanelCierre(turnoId) {
+    turnoCerrando = turnoId;
+    Promise.all([turnoResumen(db, turnoId), listTurnosDia(db)]).then(function (r) {
+      var res = r[0];
+      var t = r[1].find(function (x) { return x.id === turnoId; });
+      el('t-cerrar-titulo').textContent = 'Cerrar turno #' + turnoId + (t ? ' · ' + t.dependiente : '');
+      el('t-cerrar-detalle').textContent = 'Fondo ' + money(res.fondo) + ' + efectivo ' + money(res.efectivo) + ' − recogidas ' + money(res.recogidas) + '. Transferencia ' + money(res.transferencia) + ' y fiado ' + money(res.fiado) + ' no entran en el conteo de caja.';
+      el('t-cerrar-esperado').textContent = money(res.esperado);
+      el('t-cerrar-contado').value = '';
+      el('t-cerrar-dif').textContent = '';
+      el('t-cerrar-msg').textContent = '';
+      el('t-cerrar-panel').style.display = 'block';
+      el('t-cerrar-panel').scrollIntoView({behavior: 'smooth', block: 'nearest'});
+    });
+  }
+  function actualizarDifCierre() {
+    var v = parseFloat(el('t-cerrar-contado').value);
+    if (isNaN(v) || turnoCerrando == null) { el('t-cerrar-dif').textContent = ''; return; }
+    turnoResumen(db, turnoCerrando).then(function (res) {
+      var dif = Math.round((v - res.esperado) * 100) / 100;
+      el('t-cerrar-dif').innerHTML = dif === 0 ? '<span class="diff-ok">Diferencia $0 — el turno cuadra ✓</span>' :
+        'Diferencia: <span class="diff-bad">' + money(dif) + '</span> ' + (dif > 0 ? '(sobra efectivo)' : '(falta efectivo)');
+    });
+  }
+
   /* La capa de datos vive en db.js (SQLite en OPFS): openDb() migra los
      datos viejos de IndexedDB una sola vez y siembra los productos de
      ejemplo si la base esta vacia. */
@@ -234,40 +370,83 @@
     el('v-producto').onchange = actualizarResumenVenta;
     el('v-cantidad').oninput = actualizarResumenVenta;
     el('v-vender').onclick = function () {
+      var depId = Number(el('v-dependiente').value);
       var pid = Number(el('v-producto').value);
       var cantVenta = parseFloat(el('v-cantidad').value);
       var uv = el('v-unidad-venta').value;
       var metodo = el('v-metodo').value;
+      if (!depId) { el('v-msg').textContent = 'Nadie tiene turno abierto: abre un turno primero para poder vender.'; return; }
       if (!pid || !cantVenta || cantVenta <= 0) { el('v-msg').textContent = 'Revisa el producto y la cantidad.'; return; }
       if (uv === 'unidad' && cantVenta % 1 !== 0) { el('v-msg').textContent = 'Para vender por unidad la cantidad debe ser entera.'; return; }
-      all(db, 'productos').then(function (ps) {
-        var p = ps.find(function (x) { return x.id === pid; });
-        if (!p) return;
-        var cantStock = convertir(cantVenta, uv, p.unidad);
-        if (cantStock === null) { el('v-msg').textContent = 'BLOQUEADO: no se puede convertir ' + uv + ' a ' + p.unidad + '.'; return; }
-        if (cantStock > p.stock) { el('v-msg').textContent = 'BLOQUEADO: no hay stock suficiente. Tienes ' + fmtCant(p.stock, p.unidad) + '.'; return; }
-        var precio = metodo === 'Transferencia' ? p.precio_transferencia : p.precio_efectivo;
-        var total = Math.round(cantStock * precio * 100) / 100;
-        if (metodo === 'Fiado' && !(el('v-cliente').value || '').trim()) {
-          el('v-msg').textContent = 'Escribe el nombre del cliente para el fiado.'; return;
-        }
-        p.stock = Math.round((p.stock - cantStock) * 1000000) / 1000000;
-        put(db, 'productos', p).then(function () {
-          var venta = {producto: p.nombre, productoId: p.id, cantidad: cantStock, cantidadVenta: cantVenta, unidadVenta: uv,
-            precio: precio, costo: p.costo, total: total, metodo: metodo, fecha: Date.now(), anulada: false};
-          return put(db, 'ventas', venta).then(function (vid) {
-            if (metodo === 'Fiado') {
-              return put(db, 'fiados', {cliente: (el('v-cliente').value || '').trim(), detalle: fmtCant(cantVenta, uv) + ' × ' + p.nombre, total: total, fecha: Date.now()}).then(function (fid) {
-                venta.id = vid; venta.fiadoId = fid; return put(db, 'ventas', venta);
-              });
-            }
+      turnoAbiertoDe(db, depId).then(function (t) {
+        if (!t) { el('v-msg').textContent = 'Ese dependiente no tiene turno abierto. Abre su turno primero — así ninguna venta queda sin dueño.'; return; }
+        return all(db, 'productos').then(function (ps) {
+          var p = ps.find(function (x) { return x.id === pid; });
+          if (!p) return;
+          var cantStock = convertir(cantVenta, uv, p.unidad);
+          if (cantStock === null) { el('v-msg').textContent = 'BLOQUEADO: no se puede convertir ' + uv + ' a ' + p.unidad + '.'; return; }
+          if (cantStock > p.stock) { el('v-msg').textContent = 'BLOQUEADO: no hay stock suficiente. Tienes ' + fmtCant(p.stock, p.unidad) + '.'; return; }
+          var precio = metodo === 'Transferencia' ? p.precio_transferencia : p.precio_efectivo;
+          var total = Math.round(cantStock * precio * 100) / 100;
+          if (metodo === 'Fiado' && !(el('v-cliente').value || '').trim()) {
+            el('v-msg').textContent = 'Escribe el nombre del cliente para el fiado.'; return;
+          }
+          p.stock = Math.round((p.stock - cantStock) * 1000000) / 1000000;
+          var depNombre = depsCache[depId] ? depsCache[depId].nombre : 'Dependiente';
+          return put(db, 'productos', p).then(function () {
+            var venta = {producto: p.nombre, productoId: p.id, cantidad: cantStock, cantidadVenta: cantVenta, unidadVenta: uv,
+              precio: precio, costo: p.costo, total: total, metodo: metodo, fecha: Date.now(), anulada: false, turnoId: t.id};
+            return put(db, 'ventas', venta).then(function (vid) {
+              if (metodo === 'Fiado') {
+                return put(db, 'fiados', {cliente: (el('v-cliente').value || '').trim(), detalle: fmtCant(cantVenta, uv) + ' × ' + p.nombre, total: total, fecha: Date.now(), turnoId: t.id}).then(function (fid) {
+                  venta.id = vid; venta.fiadoId = fid; return put(db, 'ventas', venta);
+                });
+              }
+            });
+          }).then(function () {
+            el('v-msg').textContent = 'Venta guardada: ' + fmtCant(cantVenta, uv) + ' × ' + p.nombre + ' = ' + money(total) + ' (' + metodo + ') · Turno #' + t.id + ' · ' + depNombre + '. Stock ahora: ' + fmtCant(p.stock, p.unidad);
+            renderAll();
           });
-        }).then(function () {
-          el('v-msg').textContent = 'Venta guardada: ' + fmtCant(cantVenta, uv) + ' × ' + p.nombre + ' = ' + money(total) + ' (' + metodo + '). Stock ahora: ' + fmtCant(p.stock, p.unidad);
-          renderAll();
         });
       });
     };
+    /* Fase 2: turnos */
+    el('t-abrir').onclick = function () {
+      var depId = Number(el('t-abrir-dep').value);
+      var fondo = parseFloat(el('t-abrir-fondo').value);
+      if (!depId) { el('t-abrir-msg').textContent = 'Elige un dependiente sin turno abierto.'; return; }
+      if (isNaN(fondo) || fondo < 0) { el('t-abrir-msg').textContent = 'El fondo inicial no puede ser negativo.'; return; }
+      abrirTurno(db, depId, fondo).then(function (tid) {
+        return logAuditoria('turno abierto', 'Turno #' + tid + ' con fondo ' + money(fondo));
+      }).then(function () {
+        el('t-abrir-msg').textContent = 'Turno abierto. Desde ahora, las ventas de ese dependiente quedan a su nombre.';
+        renderAll();
+      }).catch(function (e) { el('t-abrir-msg').textContent = 'No se pudo abrir el turno: ' + e.message; });
+    };
+    el('t-dep-anadir').onclick = function () {
+      var nombre = (el('t-dep-nombre').value || '').trim();
+      var rol = (el('t-dep-rol').value || '').trim();
+      if (!nombre) { el('t-dep-msg').textContent = 'Escribe el nombre del dependiente.'; return; }
+      crearDependiente(db, nombre, rol).then(function () {
+        el('t-dep-msg').textContent = 'Dependiente añadido: ' + nombre;
+        el('t-dep-nombre').value = ''; el('t-dep-rol').value = '';
+        renderAll();
+      });
+    };
+    el('t-cerrar-contado').oninput = actualizarDifCierre;
+    el('t-cerrar-confirmar').onclick = function () {
+      var contado = parseFloat(el('t-cerrar-contado').value);
+      if (isNaN(contado) || turnoCerrando == null) { el('t-cerrar-msg').textContent = 'Escribe cuánto contó el dependiente para poder cerrar.'; return; }
+      cerrarTurno(db, turnoCerrando, contado).then(function (res) {
+        el('t-cerrar-msg').textContent = res.diferencia === 0 ?
+          'Turno #' + res.turnoId + ' cerrado y cuadrado: contó ' + money(res.contado) + ', igual al esperado.' :
+          'Turno #' + res.turnoId + ' cerrado con diferencia de ' + money(res.diferencia) + ': contó ' + money(res.contado) + ' frente a ' + money(res.esperado) + ' esperado.';
+        turnoCerrando = null;
+        el('t-cerrar-panel').style.display = 'none';
+        renderAll();
+      }).catch(function (e) { el('t-cerrar-msg').textContent = 'No se pudo cerrar: ' + e.message; });
+    };
+    el('t-cerrar-cancelar').onclick = function () { turnoCerrando = null; el('t-cerrar-panel').style.display = 'none'; };
     el('p-form').onsubmit = function (e) {
       e.preventDefault();
       var v = {nombre: el('p-nombre').value.trim(), categoria: el('p-categoria').value.trim(), unidad: el('p-unidad').value.trim(),

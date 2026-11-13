@@ -25,3 +25,19 @@ button.big{display:block;width:100%;background:#FFB300;border-color:#FFB300;colo
 .alerta{color:#b00020;font-weight:700}
 .hint{color:#555}
 code{word-break:break-all}
+/* Fase 2: turnos y dependientes (mismos colores de la PWA: verde oscuro + ámbar) */
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.stat{background:#fff;border:1px solid #ddd;border-radius:8px;padding:12px}
+.stat label{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:#555}
+.stat strong{display:block;font-size:22px;margin:4px 0 2px;color:#1B5E20}
+.stat span{font-size:13px;color:#555}
+.turno{background:#fff;border:1px solid #ddd;border-radius:8px;padding:12px;margin:10px 0}
+.turno.activo{border-color:#1B5E20;border-width:2px}
+.badge-turno{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:4px 8px;border-radius:999px;white-space:nowrap}
+.badge-turno.abierto{background:#DCFCE7;color:#1B5E20}
+.badge-turno.cerrado{background:#eee;color:#555}
+.bar{height:8px;background:#eee;border-radius:999px;overflow:hidden;margin-top:8px}
+.bar i{display:block;height:100%;border-radius:999px;background:#1B5E20}
+.diff-ok{color:#1B5E20;font-weight:800}
+.diff-bad{color:#b00020;font-weight:800}
+button:disabled{opacity:.45;cursor:not-allowed}
