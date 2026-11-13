@@ -15,7 +15,7 @@
    Ops: init | query {sql, params} | exec {sql, params} | close
    El esquema vive en db-schema.sql (misma carpeta); se carga una vez.
 */
-importScripts('./vendor/sql.js/sql-wasm.js');
+importScripts('./vendor/sql-wasm.js');
 
 var DB_FILE = 'bodegacontrol.sqlite3';
 var LOCK_NAME = 'bodegacontrol-db';
@@ -93,7 +93,7 @@ function init() {
     var granted = await acquireLock();
     if (!granted) throw new Error('La base de datos esta abierta en otra pestana (SQLITE_BUSY).');
     SQL = await self.initSqlJs({
-      locateFile: function (f) { return new URL('./vendor/sql.js/' + f, self.location.href).href; }
+      locateFile: function (f) { return new URL('./vendor/' + f, self.location.href).href; }
     });
     await loadOrCreate();
     var v = toObjects(db.exec('SELECT sqlite_version() AS v'));

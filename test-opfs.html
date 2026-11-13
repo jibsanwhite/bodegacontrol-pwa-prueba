@@ -14,14 +14,14 @@
   var out = document.getElementById('out');
   function log(s) { out.textContent += '\n' + s; }
   var s = document.createElement('script');
-  s.src = './vendor/sql.js/sql-wasm.js';
+  s.src = './vendor/sql-wasm.js';
   s.onload = async function () {
     try {
       log('secureContext: ' + window.isSecureContext);
       log('navigator.storage: ' + (navigator.storage ? 'si' : 'no'));
       log('FileSystemFileHandle: ' + typeof FileSystemFileHandle);
       log('navigator.locks: ' + (navigator.locks ? 'si' : 'no'));
-      var SQL = await initSqlJs({ locateFile: function (f) { return './vendor/sql.js/' + f; } });
+      var SQL = await initSqlJs({ locateFile: function (f) { return './vendor/' + f; } });
       log('sql.js cargado');
       var dir = await navigator.storage.getDirectory();
       var name = 'test-sqljs.sqlite3';

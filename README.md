@@ -42,7 +42,7 @@ URL en vivo: https://jibsanwhite.github.io/bodegacontrol-pwa-prueba/
   OPFS.
 - `db-schema.sql` — esquema SQLite (mismo que el de referencia de
   BodegaControl).
-- `vendor/sql.js/` — sql.js 1.16.0 (sql-wasm.js + sql-wasm.wasm).
+- `vendor/` — sql.js 1.16.0 (sql-wasm.js + sql-wasm.wasm).
 - `sw.js` — service worker (caché de los archivos para uso sin conexión).
 - `test-opfs.html` — página de diagnóstico (prueba sql.js + OPFS en el
   navegador).
