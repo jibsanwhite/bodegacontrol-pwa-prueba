@@ -1,5 +1,5 @@
 /* BodegaControl PWA - service worker, solo archivos locales, sin red externa */
-const CACHE = 'bodegacontrol-pwa-v4';
+const CACHE = 'bodegacontrol-pwa-v5';
 const FILES = ['index.html', 'style.css', 'app.js', 'db.js', 'db-worker.js', 'db-schema.sql',
   'vendor/sqlite3/sqlite3.mjs', 'vendor/sqlite3/sqlite3.wasm',
   'manifest.json', 'icon.svg'];
