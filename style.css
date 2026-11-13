@@ -10,15 +10,24 @@ header h1{margin:0;font-size:24px}
    overflow-x:clip impide que la pagina se corra de lado. */
 .head-row{display:flex;align-items:center;gap:12px}
 .head-row h1{flex:1}
+.logo-img{height:30px;width:30px;border-radius:8px;vertical-align:-7px}
 #btn-menu{background:transparent;border:2px solid rgba(255,255,255,.7);color:#fff;font-size:22px;line-height:1;padding:8px 12px;border-radius:8px}
 #scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:40;display:none}
 #scrim.open{display:block}
-#tabs{position:fixed;top:0;left:0;height:100%;height:100dvh;width:min(280px,82vw);background:#145117;z-index:50;display:flex;flex-direction:column;padding:0 0 16px;overflow-y:auto;transform:translateX(-105%);transition:transform .25s ease}
+#tabs{position:fixed;top:0;left:0;height:100%;height:100dvh;width:min(280px,82vw);background:#145117;z-index:50;display:flex;flex-direction:column;padding:0 0 16px;overflow-y:auto;transform:translateX(-105%);transition:transform .25s ease;border-radius:0 16px 16px 0;box-shadow:4px 0 24px rgba(0,0,0,.35)}
 #tabs.open{transform:none}
-#tabs .drawer-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 10px;color:#fff;font-size:18px;font-weight:700}
+#tabs .drawer-head{display:flex;align-items:center;justify-content:space-between;padding:20px 18px 14px;background:linear-gradient(135deg,#1B5E20,#145117);border-bottom:2px solid #FFB300}
+.drawer-brand{display:flex;align-items:center;gap:10px}
+.drawer-logo-img{width:48px;height:48px;border-radius:12px;flex:none}
+.drawer-brand strong{display:block;color:#fff;font-size:19px;line-height:1.2}
+.drawer-brand small{color:#FFB300;font-size:11px;letter-spacing:2px;font-weight:700}
 #btn-cerrar-menu{background:transparent;border:2px solid rgba(255,255,255,.7);color:#fff;font-size:18px;line-height:1;padding:6px 10px;border-radius:8px}
-#tabs button[data-tab]{display:block;width:100%;text-align:left;border:0;background:transparent;color:#fff;padding:16px 20px;font-size:17px;cursor:pointer;flex:none}
-#tabs button[data-tab].active{background:#FFB300;color:#222;font-weight:700}
+#tabs .drawer-seccion{padding:18px 22px 6px;font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#FFB300;font-weight:700}
+#tabs button[data-tab]{display:block;width:calc(100% - 20px);text-align:left;border:0;background:transparent;color:#fff;padding:14px 16px;margin:2px 10px;font-size:17px;cursor:pointer;flex:none;border-radius:12px}
+#tabs button[data-tab].active{background:#FFB300;color:#222;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.badge-turnos{display:none;background:#FFB300;color:#222;font-size:12px;font-weight:700;border-radius:999px;padding:2px 8px;margin-left:6px}
+#tabs button[data-tab].active .badge-turnos{background:#145117;color:#fff}
+.drawer-pie{margin-top:auto;padding:18px 22px 4px;font-size:12px;color:rgba(255,255,255,.6)}
 main{padding:16px;max-width:720px;margin:0 auto}
 .tab{display:none}
 .tab.active{display:block}

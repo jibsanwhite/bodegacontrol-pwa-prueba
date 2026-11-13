@@ -259,6 +259,8 @@
         '<div class="stat"><label>Turnos cerrados hoy</label><strong>' + est.cerrados + '</strong><span>Con cierre y conteo registrado</span></div>' +
         '<div class="stat"><label>Ventas de hoy</label><strong>' + money(est.ventasHoy) + '</strong><span>' + est.nVentasHoy + ' operaciones registradas</span></div>' +
         '<div class="stat"><label>Fiado de hoy</label><strong>' + money(est.fiadoHoy) + '</strong><span>Queda fuera del conteo de caja</span></div>';
+      var bt = el('badge-turnos');
+      if (bt) { bt.textContent = est.abiertos ? String(est.abiertos) : ''; bt.style.display = est.abiertos ? 'inline-block' : 'none'; }
       var sinTurno = deps.filter(function (d) {
         return d.activo && !rend.some(function (x) { return x.id === d.id && x.turnoAbierto; });
       });
