@@ -364,6 +364,10 @@
      ejemplo si la base esta vacia. */
   openDb().then(function (d) {
     db = d;
+    /* El asistente (asistente_pwa.js) lee la base desde este handle para
+       construir su snapshot; openDb() no se puede llamar dos veces (el
+       candado Web Locks lo rechazaría con SQLITE_BUSY). */
+    window.__bcDbHandle = d;
   }).then(function () {
     renderTabs();
     el('btn-menu').onclick = function () { abrirMenu(); };

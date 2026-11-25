@@ -25,6 +25,7 @@
     abonos: 'debt_payments',
     cierres: 'daily_closes',
     recogidas: 'fund_movements',
+    gastos: 'expenses',
     auditoria: 'audit_log'
   };
 
@@ -35,7 +36,14 @@
     fiados: { id: 'id', cliente: 'clientName', detalle: 'detalle', total: 'total', fecha: 'timestamp', anulada: 'anulada', turnoId: 'turno_id' },
     abonos: { id: 'id', fiadoId: 'creditSaleId', monto: 'amount', fecha: 'timestamp', turnoId: 'turno_id' },
     cierres: { id: 'id', fecha: 'closeTimestamp', efectivo: 'cashTotal', transferencia: 'transferTotal', fiados: 'creditSalesTotal', cobros: 'debtCollectedTotal', recogidas: 'recogidas', conteo: 'conteo', diferencia: 'diferencia', ventas: 'ventas' },
-    recogidas: { id: 'id', monto: 'amount', nota: 'concept', fecha: 'timestamp' },
+    /* CORRECCIÓN 24/11 (asistente): fecha apuntaba a la columna 'timestamp',
+       que NO existe en fund_movements, así que all(...,'recogidas') devolvía
+       fecha=null y la Caja, el cierre y el reporte nunca contaban las
+       recogidas. La fecha real es 'createdAt' (ms, lo que guarda put). */
+    recogidas: { id: 'id', monto: 'amount', nota: 'concept', fecha: 'createdAt' },
+    /* La PWA no tiene pantalla de gastos (la tabla existe para la misma
+       forma que la referencia); el asistente la lee para gastosHoy. */
+    gastos: { id: 'id', fecha: 'date', concepto: 'concept', categoria: 'category', monto: 'amount', nota: 'notes' },
     auditoria: { id: 'id', tipo: 'type', detalle: 'detail', fecha: 'created_at' }
   };
 

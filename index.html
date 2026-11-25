@@ -178,9 +178,9 @@
       <div class="stat"><label>Copias en la nube</label><strong id="r-copias">—</strong><span id="r-tamano">tamaño de la base: —</span></div>
     </div>
 
-    <div class="field"><label for="r-correo">Correo del negocio (cuenta de Google)</label><input id="r-correo" type="email" placeholder="tunegocio@gmail.com"></div>
-    <div class="field"><label for="r-url">URL de tu Apps Script (respaldo)</label><input id="r-url" type="url" placeholder="https://script.google.com/macros/s/.../exec"></div>
-    <div class="field"><label for="r-clave">Clave del respaldo (la misma que guardaste en el script)</label><input id="r-clave" type="password" placeholder="Clave del respaldo" autocomplete="off"></div>
+    <p id="r-cuenta" class="msg">Sin conectar con Google.</p>
+    <button id="r-conectar" class="big">Conectar con Google</button>
+    <button id="r-desconectar" style="display:none">Desconectar</button>
     <button id="r-respaldar" class="big">Respaldar ahora</button>
     <button id="r-restaurar" class="big">Restaurar copia</button>
     <button id="r-descargar" class="big">Descargar copia (local)</button>
@@ -188,13 +188,16 @@
 
     <h3>Copias guardadas</h3>
     <ul id="r-lista" class="list"><li>Sin copias todavía.</li></ul>
-    <p class="hint">Solo el dueño puede respaldar o restaurar. La copia vive en tu Drive, en BodegaControl / Respaldos / tu-correo. En la versión gratuita solo está la descarga local.</p>
+    <p class="hint">Solo el dueño puede respaldar o restaurar. La copia vive en tu Drive, en BodegaControl / Respaldos / tu-correo. En la versión gratuita solo está la descarga local. Para conectar no hay que pegar nada: toca "Conectar con Google" y elige la cuenta del negocio.</p>
   </section>
 </main>
 
 <script src="db.js"></script>
 <script src="app.js"></script>
 <script src="respaldo.js"></script>
+<script src="AsistenteMotor.js"></script>
+<script src="asistente_pwa.js"></script>
+<script src="asistente_ui.js"></script>
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
