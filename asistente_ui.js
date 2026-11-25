@@ -1,7 +1,3 @@
-/* COPIA para la PWA (funciona sin conexión).
-   Original canónico: ~/workspace/negocio-alo-rico-rico/asistente/asistente_ui.js
-   Si cambia el original, volver a copiarlo aquí y subir la PWA.
-   NO editar esta copia a mano: los cambios se pierden en la próxima copia. */
 /* ============================================================================
    Asistente de Alo Rico Rico — UI del chat (página del sistema, producción).
    Se carga con <script src="asistente_ui.js"> en la página principal.
@@ -150,6 +146,31 @@ function montar() {
   var enviarBtn = panel.querySelector('#asEnviar');
   var sub = panel.querySelector('#asSub');
   var abierto = false, saludado = false, esperando = false;
+
+  /* El botón solo vive dentro de la sesión: nunca sobre la pantalla de
+     login y nunca para el rol cliente (el asistente responde con datos
+     del dueño: ventas, caja, deudas). En la PWA no hay login ni sesión
+     y el botón se muestra siempre. */
+  function loginVisible() {
+    var lp = document.getElementById('loginPantalla');
+    return !!lp && window.getComputedStyle(lp).display !== 'none';
+  }
+  function rolPermitido() {
+    var s = window.sesion;
+    if (!s || !s.rol) return true;
+    return s.rol === 'admin' || s.rol === 'supervisor';
+  }
+  function actualizarVisibilidadAsistente() {
+    var mostrar = !loginVisible() && rolPermitido();
+    btn.style.display = mostrar ? '' : 'none';
+    if (!mostrar) { panel.classList.remove('abierto'); abierto = false; }
+  }
+  var lp0 = document.getElementById('loginPantalla');
+  if (lp0 && typeof MutationObserver !== 'undefined') {
+    var obsLogin = new MutationObserver(function () { actualizarVisibilidadAsistente(); });
+    obsLogin.observe(lp0, { attributes: true, attributeFilter: ['style', 'class'] });
+  }
+  actualizarVisibilidadAsistente();
 
   PREGUNTAS.forEach(function (p) {
     var c = document.createElement('button');
