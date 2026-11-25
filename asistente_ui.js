@@ -69,7 +69,7 @@ var CSS = '' +
 '#asBody{flex:1;overflow-y:auto;padding:.8rem;display:flex;flex-direction:column;gap:.6rem;background:#F8FAFC}' +
 '.asMsg{max-width:92%;padding:.6rem .8rem;border-radius:12px;line-height:1.45;white-space:normal;word-wrap:break-word}' +
 '.asMsg small{color:#475569}' +
-'.asBot{background:#fff;border:1px solid #E2E8F0;align-self:flex-start;border-bottom-left-radius:4px}' +
+'.asBot{background:#fff;border:1px solid #E2E8F0;color:#1E293B;align-self:flex-start;border-bottom-left-radius:4px}' +
 '.asYo{background:#1B4D2E;color:#fff;align-self:flex-end;border-bottom-right-radius:4px}' +
 '.asEscribiendo{color:#64748B;font-style:italic}' +
 '#asChips{display:flex;flex-wrap:wrap;gap:.4rem;padding:.5rem .8rem;background:#fff;border-top:1px solid #E2E8F0}' +
